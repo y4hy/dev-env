@@ -133,3 +133,4 @@ element alternate urgent {
     background-color:               @alternate-urgent-background;
     text-color:                     @alternate-urgent-foreground;
 }
+
