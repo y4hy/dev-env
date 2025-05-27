@@ -1,0 +1,116 @@
+/* Ultra Transparent Minimalist Rofi Theme with Top-to-Bottom Transparency Simulation */
+* {
+    font: "0xProto Nerd Font 12";  /* 👈 Add your preferred size here */
+
+    /* Base Colors */
+    background-color:               rgba(5, 5, 5, 0.30);  /* Very transparent base */
+    text-color:                     #E0E0E0;
+
+    selbg:                          rgba(29, 29, 29, 0.45);
+    actbg:                          rgba(18, 18, 18, 0.40);
+    urgbg:                          rgba(169, 169, 169, 0.35);
+
+    winbg:                          @background-color;
+
+    normal-foreground:              @text-color;
+    normal-background:              @background-color;
+
+    selected-normal-background:     @selbg;
+    selected-normal-foreground:     #FFFFFF;
+
+    active-background:              @actbg;
+    active-foreground:              #FFFFFF;
+
+    urgent-background:              @urgbg;
+    urgent-foreground:              @background-color;
+
+    selected-active-background:     @selbg;
+    selected-active-foreground:     #FFFFFF;
+
+    selected-urgent-background:     @urgbg;
+    selected-urgent-foreground:     @background-color;
+
+    alternate-normal-background:    rgba(10, 10, 10, 0.25);
+    alternate-normal-foreground:    @text-color;
+    alternate-active-background:    rgba(18, 18, 18, 0.35);
+    alternate-active-foreground:    #FFFFFF;
+    alternate-urgent-background:    rgba(169, 169, 169, 0.3);
+    alternate-urgent-foreground:    @background-color;
+
+    separator-style:                "none";
+    border:                         0px;
+    border-radius:                  6px;
+    padding:                        4px;
+    margin:                         0;
+}
+
+window {
+    background-color:               rgba(5, 5, 5, 0.30);
+    children:                       [ mainbox ];
+}
+
+mainbox {
+    border:                         0;
+    orientation:                    vertical;
+    spacing:                        6px;
+    children:                       [ entry, listview ];
+}
+
+entry {
+    expand:                         false;
+    text-color:                     @text-color;
+    background-color:               rgba(5, 5, 5, 0.20);  /* Most transparent - Top */
+    padding:                        10px 10px;
+    margin:                         10px 10px 0 10px;
+    border:                         0 0 1px 0;
+    border-color:                   rgba(255,255,255,0.1);
+}
+
+listview {
+    border:                         0;
+    padding:                        5px 10px;
+    line-height:                    1.3em;
+    background-color:               rgba(5, 5, 5, 0.35);  /* Slightly darker than entry */
+}
+
+element {
+    padding:                        7px 10px;
+    border-radius:                  3px;
+    background-color:               rgba(5, 5, 5, 0.40);  /* Bottom-most: least transparent */
+}
+
+element normal {
+    background-color:               @normal-background;
+    text-color:                     @normal-foreground;
+}
+
+element urgent {
+    background-color:               @urgent-background;
+    text-color:                     @urgent-foreground;
+}
+
+element active {
+    background-color:               @active-background;
+    text-color:                     @active-foreground;
+}
+
+element selected {
+    background-color:               @selected-normal-background;
+    text-color:                     @selected-normal-foreground;
+}
+
+element alternate normal {
+    background-color:               @alternate-normal-background;
+    text-color:                     @alternate-normal-foreground;
+}
+
+element alternate active {
+    background-color:               @alternate-active-background;
+    text-color:                     @alternate-active-foreground;
+}
+
+element alternate urgent {
+    background-color:               @alternate-urgent-background;
+    text-color:                     @alternate-urgent-foreground;
+}
+

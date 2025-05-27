@@ -1,3 +1,6 @@
+
+set -g fish_greeting
+
 if status is-interactive
     set fish_cursor_default block
     set fish_cursor_insert block
