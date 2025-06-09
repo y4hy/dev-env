@@ -3,16 +3,21 @@ return {
     event = "VeryLazy",
     version = false, -- Never set this value to "*"! Never!
     opts = {
-        provider = "copilot",
-        copilot = {
-            endpoint = "https://api.githubcopilot.com",
-            model = "claude-3.7-sonnet",
-            proxy = nil, -- [protocol://]host[:port] Use this proxy
-            allow_insecure = false, -- Allow insecure server connections
-            timeout = 30000, -- Timeout in milliseconds
-            temperature = 0,
-            max_tokens = 20480,
-            disable_tools = false,
+        providers = {
+            copilot = {
+                endpoint = "https://api.githubcopilot.com",
+                model = "claude-3.7-sonnet",
+                proxy = nil, -- [protocol://]host[:port] Use this proxy
+                allow_insecure = false, -- Allow insecure server connections
+                timeout = 30000, -- Timeout in milliseconds
+                temperature = 0,
+                max_tokens = 20480,
+                disable_tools = false,
+                extra_request_body = {
+                    max_tokens = 20480, -- Override the default max_tokens for copilot
+                    temperature = 0, -- Override the default temperature for copilot
+                }
+            },
         },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
@@ -91,10 +96,21 @@ return {
                 "python",
             },
 
-            provider = "copilot",
-            copilot = {
-                model = "claude-3.7-sonnet"
+            providers = {
+                copilot = {
+                    endpoint = "https://api.githubcopilot.com",
+                    model = "claude-3.7-sonnet",
+                    proxy = nil, -- [protocol://]host[:port] Use this proxy
+                    allow_insecure = false, -- Allow insecure server connections
+                    timeout = 30000, -- Timeout in milliseconds
+                    disable_tools = false,
+                    extra_request_body = {
+                        max_tokens = 20480, -- Override the default max_tokens for copilot
+                        temperature = 0, -- Override the default temperature for copilot
+                    }
+                },
             },
+            provider = "copilot", -- Default provider
         })
     end
 }
