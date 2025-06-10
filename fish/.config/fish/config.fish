@@ -22,3 +22,4 @@ end
 
 fish_add_path /home/y4hy/go/bin
 fish_add_path /home/y4hy/tools
+
