@@ -23,7 +23,7 @@ stow fish kitty nvim rofi wp neofetch hyprland
 
 chsh -s $(which fish)
 
-sudo pacman -S dolphin zip unzip htop locate fuse3 rclone obsidian wl-clipboard syncthing gnome-calculator openvpn gnome-keyring libsecret seahorse lxqt-sudo ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji nodejs npm docker docker-compose nvidia-container-toolkit python-pip
+sudo pacman -S dolphin zip unzip htop locate fuse3 rclone obsidian wl-clipboard syncthing gnome-calculator openvpn gnome-keyring libsecret seahorse lxqt-sudo ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji nodejs npm docker docker-compose nvidia-container-toolkit python-pip dunst libnotify
 
 sudo cp keyring/login /etc/pam.d/login
 

@@ -1,0 +1,81 @@
+# This is a complete, modern configuration for the Dunst notification daemon.
+# Designed for a dark desktop theme with a Nerd Font.
+#
+# File location: ~/.config/dunst/dunstrc
+
+[global]
+    ### Display ###
+    # Which monitor to display notifications on. 0 is primary.
+    monitor = 0
+    # Follow mouse pointer to the active monitor.
+    follow = mouse
+    # The geometry of the notification window.
+    # format: "{width}x{height}[+/-]{x}[+/-]{y}"
+    # This sets a 300px wide window at the top-right corner.
+    geometry = "300x5-30+50"
+
+    ### Styling ###
+    # A simple but effective format.
+    # %a = application name
+    # %s = summary (the title)
+    # %b = body (the message)
+    # %I = icon path
+    # %p = progress value
+    format = "<b>%s</b>\n%b"
+
+    # The font for the notification text.
+    # Use the Nerd Font you installed to get icons.
+    font = JetBrainsMono Nerd Font 10
+
+    # Whether to allow markup (for bold, italics, etc.)
+    allow_markup = yes
+
+    # Shrink the window if the text is smaller than the width.
+    shrink = yes
+    # Alignment of text. `left`, `center`, or `right`.
+    alignment = left
+    # Vertical alignment of text. `top`, `center`, `bottom`.
+    vertical_alignment = center
+
+    # Path to default icons.
+    icon_path = /usr/share/icons/Adwaita/16x16/legacy/:/usr/share/icons/Papyrus/16x16/apps/
+
+    ### Behavior ###
+    # Don't show notifications older than 60 seconds.
+    show_age_threshold = 60
+    # Word wrapping.
+    word_wrap = yes
+    # Show how many notifications are hidden.
+    indicate_hidden = yes
+    # Stack notifications on top of each other.
+    stack_duplicates = true
+    # Hide duplicate notifications.
+    hide_duplicate_count = true
+
+[frame]
+    # The frame around the notification window.
+    width = 2
+    # The color of the frame, using the Adwaita accent blue.
+    color = "#3584e4"
+
+# --- THEME AND COLORS (Adwaita Dark Palette) ---
+# This palette uses the official colors from GNOME's Adwaita Dark theme.
+
+[urgency_low]
+    # For low-urgency notifications.
+    background = "#242424"  # Adwaita dark grey
+    foreground = "#eeeeec"  # Adwaita off-white text
+    timeout = 5
+
+[urgency_normal]
+    # For standard notifications.
+    background = "#242424"
+    foreground = "#eeeeec"
+    timeout = 8
+
+[urgency_critical]
+    # For critical notifications.
+    background = "#c01c28"  # Adwaita error red
+    foreground = "#ffffff"  # High-contrast white text
+    frame_color = "#c01c28"
+    timeout = 0 # Stays until you dismiss it
