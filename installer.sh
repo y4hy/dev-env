@@ -30,4 +30,3 @@ sudo cp keyring/login /etc/pam.d/login
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 
 sudo reboot now
-
