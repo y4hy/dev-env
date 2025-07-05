@@ -32,4 +32,3 @@ fish_add_path /home/y4hy/tools
 # environment variables
 set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
 set -x SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
-
