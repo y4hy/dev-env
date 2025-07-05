@@ -15,11 +15,11 @@ sudo pacman -S pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 mkdir ~/.dotfiles
 cp -R dotfiles/* ~/.dotfiles
 
-sudo pacman -S hyprland neovim kitty fish rofi swww waybar stow
+sudo pacman -S hyprland neovim kitty fish rofi swww stow
 
 cd ~/.dotfiles
 
-stow fish kitty nvim rofi wp neofetch hyprland waybar
+stow fish kitty nvim rofi wp neofetch hyprland
 
 chsh -s $(which fish)
 
