@@ -1,8 +1,22 @@
-
-# disable fish greeting
+# =====================================================================
+# GREETING
+# =====================================================================
+# Disable the default welcome message for a cleaner start.
 set -g fish_greeting
 
-# set fish prompt
+# Look up to Oh My Fish !!!!
+
+# =====================================================================
+# KEY BINDINGS & EDITOR
+# =====================================================================
+# Enable Vi key bindings. Use 'i' for insert mode and 'Escape' for command mode.
+fish_vi_key_bindings
+
+# Set your default command-line editor (e.g., for `funced`).
+# Options: 'nvim', 'vim', 'nano', 'code'
+set -x EDITOR nvim
+
+# Cursor's theme and shape
 if status is-interactive
     set fish_cursor_default block
     set fish_cursor_insert block
@@ -10,25 +24,50 @@ if status is-interactive
     set fish_cursor_visual block
 end
 
-# enable last working directory
-set -q fish_most_recent_dir && [ -d "$fish_most_recent_dir" ] && cd "$fish_most_recent_dir"
+# =====================================================================
+# PATH VARIABLES
+# =====================================================================
+# Use the modern 'fish_add_path' to safely add directories to your PATH.
+# This function prevents duplicate entries.
 
-function save_dir --on-variable PWD
-    set -U fish_most_recent_dir $PWD
+fish_add_path /home/y4hy/go/bin
+fish_add_path /home/y4hy/tools
+fish_add_path ~/.local/bin
+fish_add_path ~/.cargo/bin
+
+# =====================================================================
+# ENVIRONMENT VARIABLES
+# =====================================================================
+# Use 'set -x' to export variables for other programs to access.
+
+set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
+set -x SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
+set -x BROWSER 'zen-browser'
+
+# =====================================================================
+# ALIASES
+# =====================================================================
+# Define shortcuts for frequently used commands.
+
+alias ls 'ls --color=auto --hyperlink=auto'
+alias ll 'ls -l'
+alias la 'ls -la'
+alias cat 'bat --paging=never' # Requires 'bat' to be installed
+alias update 'sudo pacman -Syu' # For Debian/Ubuntu based systems
+
+# =====================================================================
+# CUSTOM FUNCTIONS
+# =====================================================================
+# A simple function to create a directory and change into it.
+function mkcd
+    mkdir -p $argv[1]
+    and cd $argv[1]
 end
 
-# enable fish vi key bindings
-fish_vi_key_bindings
-
-# launchin fish after tty1 login
+# =====================================================================
+# HYPRLAND AUTO-LAUNCH
+# =====================================================================
+# This logic is unchanged and will start Hyprland on TTY1.
 if test -z "$DISPLAY" -a (tty) = "/dev/tty1"
     exec Hyprland
 end
-
-# path variables
-fish_add_path /home/y4hy/go/bin
-fish_add_path /home/y4hy/tools
-
-# environment variables
-set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
-set -x SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
