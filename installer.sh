@@ -11,7 +11,7 @@ sudo pacman -Syu --noconfirm
 sudo pacman -S --noconfirm --needed git base-devel linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
-# AUR HELPER (yay)
+# AUR HELPER INSTALLATION (yay)
 #-------------------------------------------------------------------------------
 echo "› Installing AUR helper (yay)..."
 if ! command -v yay &> /dev/null; then
@@ -37,7 +37,7 @@ sudo pacman -S --noconfirm --needed nvidia-dkms nvidia-utils nvidia-settings nvi
 sudo pacman -S --noconfirm --needed pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 
 #-------------------------------------------------------------------------------
-# PACKAGES (CATEGORIZED)
+# PACKAGE INSTALLATION (CATEGORIZED)
 #-------------------------------------------------------------------------------
 
 # --- Desktop Environment & Core Apps ---
@@ -55,7 +55,7 @@ sudo pacman -S --noconfirm --needed \
     lxqt-sudo
 
 # --- File Management & System Utilities ---
-echo "› Installing utilities..."
+echo "› Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
     dolphin \
     zip \
@@ -67,7 +67,12 @@ sudo pacman -S --noconfirm --needed \
     syncthing \
     gnome-calculator \
     openvpn \
-    libnotify
+    libnotify \
+    curl
+
+# --- Media Tools ---
+echo "› Installing media tools..."
+sudo pacman -S --noconfirm --needed vlc
 
 # --- Fonts ---
 echo "› Installing fonts..."
@@ -95,13 +100,25 @@ sudo pacman -S --noconfirm --needed \
     seahorse
 
 # --- AUR Packages ---
-echo "› Installing AUR packages..."
+echo "› Installing AUR packages (with yay)..."
 yay -S --noconfirm --needed \
     zen-browser-bin \
-    obsidian
+    obsidian \
+    protonvpn-gui
 
 #-------------------------------------------------------------------------------
-# SECTION 5: SYSTEM CONFIGURATION
+# PROGRAMMING LANGUAGE SDKs
+#-------------------------------------------------------------------------------
+echo "› Installing Rust via rustup..."
+# The -y flag ensures the installation proceeds with default options without prompting.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Add cargo to the current session's PATH. The shell rc file will handle future sessions.
+export PATH="$HOME/.cargo/bin:$PATH"
+echo "› Rust has been installed successfully."
+
+
+#-------------------------------------------------------------------------------
+# SYSTEM CONFIGURATION
 #-------------------------------------------------------------------------------
 echo "› Applying system-level configurations..."
 
@@ -127,8 +144,8 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 #-------------------------------------------------------------------------------
 echo "› Applying user-level configurations..."
 
-# --- Set up Dotfiles ---
-echo "  -> Setting up dotfiles directory..."
+# --- Dotfiles Setup ---
+echo "  -> Creating dotfiles directory..."
 mkdir -p ~/.dotfiles
 cp -R dotfiles/* ~/.dotfiles
 
@@ -149,7 +166,7 @@ fi
 #-------------------------------------------------------------------------------
 echo ""
 echo "✅ System setup is complete!"
-echo "It is highly recommended to reboot now."
+echo "It is highly recommended to reboot now to apply all changes."
 read -p "Reboot now? (y/N): " choice
 case "$choice" in
   y|Y ) sudo reboot now;;
