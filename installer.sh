@@ -73,6 +73,21 @@ sudo pacman -S --noconfirm --needed \
     libnotify \
     curl
 
+# --- Snapshot & Backup (Snapper for Btrfs) ---
+echo "› Installing Snapper for Btrfs snapshots..."
+sudo pacman -S --noconfirm --needed snapper snap-pac grub-btrfs
+
+# --- Virtualization ---
+echo "› Installing Virtualization tools (KVM/QEMU/Libvirt)..."
+sudo pacman -S --noconfirm --needed \
+    qemu-desktop \
+    virt-manager \
+    libvirt \
+    dnsmasq \
+    vde2 \
+    bridge-utils \
+    edk2-ovmf
+
 # --- Media Tools ---
 echo "› Installing media tools..."
 sudo pacman -S --noconfirm --needed vlc
@@ -107,32 +122,47 @@ echo "› Installing AUR packages (with yay)..."
 yay -S --noconfirm --needed \
     zen-browser-bin \
     obsidian \
-    protonvpn-gui
+    protonvpn-gui \
+    spotify
 
 #-------------------------------------------------------------------------------
-# DOCKER CONFIGURATION
+# SERVICE & SYSTEM CONFIGURATION
 #-------------------------------------------------------------------------------
-echo "› Configuring and starting Docker..."
+echo "› Applying system-level configurations..."
+
+# --- Configure Docker ---
+echo "  -> Configuring and starting Docker..."
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 echo "› User $USER has been added to the docker group. You will need to log out and log back in for this to take effect."
 
-#-------------------------------------------------------------------------------
-# PROGRAMMING LANGUAGE SDKs
-#-------------------------------------------------------------------------------
-echo "› Installing Rust via rustup..."
-# The -y flag ensures the installation proceeds with default options without prompting.
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-# Add cargo to the current session's PATH. The shell rc file will handle future sessions.
-export PATH="$HOME/.cargo/bin:$PATH"
-rustc component add rust-analyzer
-echo "› Rust has been installed successfully."
+# --- Configure Libvirt for Virtualization ---
+echo "  -> Configuring Libvirt (KVM)..."
+sudo systemctl enable --now libvirtd.service
+sudo usermod -aG libvirt $USER
+echo "› User $USER has been added to the libvirt group. You will need to log out and log back in for this to take effect."
+echo "› Default virtual network will start on-demand when a VM is launched."
 
+# --- Configure Snapper for Btrfs Snapshots ---
+echo "  -> Setting up Snapper..."
+# Check if the root filesystem is Btrfs before proceeding
+if [ "$(stat -f -c %T /)" = "btrfs" ]; then
+    # Create a default configuration for the root filesystem if it doesn't exist
+    if [ ! -f /etc/snapper/configs/root ]; then
+        echo "  -> Creating Snapper config for '/'..."
+        sudo snapper -c root create-config /
+    else
+        echo "  -> Snapper config for '/' already exists."
+    fi
 
-#-------------------------------------------------------------------------------
-# SYSTEM CONFIGURATION
-#-------------------------------------------------------------------------------
-echo "› Applying system-level configurations..."
+    # Enable and start the services/timers for automatic snapshots and cleanup
+    echo "  -> Enabling Snapper services..."
+    sudo systemctl enable --now snapper-timeline.timer
+    sudo systemctl enable --now snapper-cleanup.timer
+    sudo systemctl enable --now grub-btrfsd.service
+else
+    echo "  -> Skipping Snapper setup: '/' is not a Btrfs filesystem."
+fi
 
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 echo "  -> Copying GRUB and mkinitcpio configs..."
@@ -150,6 +180,19 @@ sudo cp "$SCRIPT_DIR/keyring/login" /etc/pam.d/login
 # --- Configure Git to use libsecret ---
 echo "  -> Configuring Git credential helper..."
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
+
+
+#-------------------------------------------------------------------------------
+# PROGRAMMING LANGUAGE SDKs
+#-------------------------------------------------------------------------------
+echo "› Installing Rust via rustup..."
+# The -y flag ensures the installation proceeds with default options without prompting.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# Add cargo to the current session's PATH. The shell rc file will handle future sessions.
+export PATH="$HOME/.cargo/bin:$PATH"
+rustc component add rust-analyzer
+echo "› Rust has been installed successfully."
+
 
 #-------------------------------------------------------------------------------
 # USER-LEVEL CONFIGURATION
@@ -181,7 +224,9 @@ fi
 #-------------------------------------------------------------------------------
 echo ""
 echo "✅ System setup is complete!"
-echo "It is highly recommended to reboot now to apply all changes."
+echo "LOG OUT and LOG BACK IN for all group changes (Docker, Libvirt) to take effect."
+echo "After logging back in, you can start 'Virtual Machine Manager' from your application menu."
+echo "It is highly recommended to reboot now to apply all changes (like kernel and drivers)."
 read -p "Reboot now? (y/N): " choice
 case "$choice" in
   y|Y ) sudo reboot now;;
