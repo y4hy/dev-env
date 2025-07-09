@@ -3,6 +3,9 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# Determine the script's absolute directory to handle relative paths correctly.
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 #-------------------------------------------------------------------------------
 # SYSTEM UPDATE & CORE DEPENDENCIES
 #-------------------------------------------------------------------------------
@@ -107,6 +110,14 @@ yay -S --noconfirm --needed \
     protonvpn-gui
 
 #-------------------------------------------------------------------------------
+# DOCKER CONFIGURATION
+#-------------------------------------------------------------------------------
+echo "› Configuring and starting Docker..."
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+echo "› User $USER has been added to the docker group. You will need to log out and log back in for this to take effect."
+
+#-------------------------------------------------------------------------------
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
 echo "› Installing Rust via rustup..."
@@ -125,8 +136,8 @@ echo "› Applying system-level configurations..."
 
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 echo "  -> Copying GRUB and mkinitcpio configs..."
-sudo cp nvidia/grub /etc/default/grub
-sudo cp nvidia/mkinitcpio /etc/mkinitcpio.conf
+sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
+sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
 
 echo "  -> Regenerating initramfs and GRUB config..."
 sudo mkinitcpio -P
@@ -134,7 +145,7 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 
 # --- Configure PAM for GNOME Keyring ---
 echo "  -> Setting up PAM for Keyring..."
-sudo cp keyring/login /etc/pam.d/login
+sudo cp "$SCRIPT_DIR/keyring/login" /etc/pam.d/login
 
 # --- Configure Git to use libsecret ---
 echo "  -> Configuring Git credential helper..."
@@ -148,12 +159,14 @@ echo "› Applying user-level configurations..."
 # --- Dotfiles Setup ---
 echo "  -> Creating dotfiles directory..."
 mkdir -p ~/.dotfiles
-cp -R dotfiles/* ~/.dotfiles
+cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles
 
 echo "  -> Applying configurations with Stow..."
-cd ~/.dotfiles
+# Remove potential conflicts before stowing
 rm -rf ~/.config/fish
-stow fish kitty nvim rofi wp neofetch dunst hyprland
+rm -rf ~/.config/hypr
+# Run stow safely from within the dotfiles directory
+(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland)
 
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
