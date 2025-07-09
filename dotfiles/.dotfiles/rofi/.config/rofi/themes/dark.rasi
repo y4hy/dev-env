@@ -1,0 +1,137 @@
+/* Monochrome Modern Rofi Teması - Ekstra Koyu & Minimalist */
+* {
+    /* Renk Paleti - Ekstra Koyu */
+    background-color:               #050505; /* Ana arka plan - Neredeyse siyah */
+    text-color:                     #E0E0E0; /* Ana metin rengi - Açık gri (iyi kontrast için) */
+    selbg:                          #1D1D1D; /* Seçim arka planı - Çok koyu gri */
+    actbg:                          #121212; /* Aktif öğe arka planı - Arka plandan biraz daha açık, çok koyu gri */
+    urgbg:                          #A9A9A9; /* Acil durum arka planı - Açık gri (kontrast için) */
+    winbg:                          @background-color; /* Pencere arka planı */
+
+    /* Türetilmiş Renkler */
+    normal-foreground:              @text-color;
+    normal-background:              @background-color;
+
+    selected-normal-background:     @selbg;
+    selected-normal-foreground:     #FFFFFF; /* Seçili öğe metni - Beyaz (maksimum kontrast) */
+
+    active-background:              @actbg;
+    active-foreground:              #FFFFFF; /* Aktif öğe metni - Beyaz */
+
+    urgent-background:              @urgbg;
+    urgent-foreground:              @background-color; /* Acil durum metni - Ekstra koyu (açık arka plan üzerinde) */
+
+    selected-active-background:     @selbg; /* Aktif ve seçiliyse, seçim arka planını kullan */
+    selected-active-foreground:     #FFFFFF;
+
+    selected-urgent-background:     @urgbg; /* Acil ve seçiliyse, acil durum arka planını kullan */
+    selected-urgent-foreground:     @background-color;
+
+    alternate-normal-background:    #0A0A0A; /* Alternatif satır arka planı - Ana arka plandan çok hafifçe daha açık */
+    alternate-normal-foreground:    @text-color;
+    alternate-active-background:    @actbg;
+    alternate-active-foreground:    #FFFFFF;
+    alternate-urgent-background:    @urgbg;
+    alternate-urgent-foreground:    @background-color;
+
+    /* Genel Stil - Minimalist (Bir önceki versiyondaki gibi korunmuştur) */
+    separator-style:                "none";
+    border:                         1px;
+    border-color:                   #101010;   /* Çok koyu kenarlık rengi */
+    border-radius:                  3px;
+    padding:                        4px;
+    margin:                         0;
+}
+
+window {
+    background-color:               @background-color;
+    children:                       [ mainbox ];
+    /* İsteğe bağlı: Pencere boyutunu küçültmek için genişlik ayarlanabilir */
+    /* width:                          30%; */
+}
+
+mainbox {
+    border:                         0;
+    orientation:                    vertical;
+    spacing:                        6px;
+    children:                       [ entry, message, listview, mode-switcher ];
+}
+
+entry {
+    expand:                         false;
+    text-color:                     @text-color;
+    padding:                        10px 0px;
+    margin:                         10px 10px 0 10px;
+    border:                         0 0 1px 0;
+    border-color:                   @border-color;
+}
+
+listview {
+    border:                         0;
+    padding:                        5px 10px;
+    line-height:                    1.3em;
+    /* İsteğe bağlı: Satır sayısını sınırlayarak yüksekliği azaltabilirsiniz */
+    /* lines:                          8; */
+    /* fixed-height:                 true; */ /* lines ile birlikte kullanılırsa */
+}
+
+element {
+    padding:                        7px 10px;
+    border-radius:                  2px;
+}
+
+mode-switcher {
+    margin:                         5px 10px 10px 10px;
+}
+
+button {
+    padding:                        6px 10px;
+    border-radius:                  2px;
+    text-color:                     @text-color;
+    background-color:               @actbg;
+}
+
+button selected {
+    background-color:               @selbg;
+    text-color:                     #FFFFFF;
+    border-color:                   @selbg;
+}
+
+/* Öğe durumları (çoğunlukla yukarıda * içinde tanımlanmıştır) */
+element normal {
+    background-color:               @normal-background;
+    text-color:                     @normal-foreground;
+}
+
+element urgent {
+    background-color:               @urgent-background;
+    text-color:                     @urgent-foreground;
+}
+
+element active {
+    background-color:               @active-background;
+    text-color:                     @active-foreground;
+}
+
+element selected {
+    background-color:               @selected-normal-background;
+    text-color:                     @selected-normal-foreground;
+}
+
+/* Alternatif satırlar için kontrast (yukarıda * içinde tanımlanmıştır) */
+element alternate normal {
+    background-color:               @alternate-normal-background;
+    text-color:                     @alternate-normal-foreground;
+}
+
+element alternate active {
+    background-color:               @alternate-active-background;
+    text-color:                     @alternate-active-foreground;
+}
+
+element alternate urgent {
+    background-color:               @alternate-urgent-background;
+    text-color:                     @alternate-urgent-foreground;
+}
+
+

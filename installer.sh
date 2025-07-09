@@ -71,7 +71,9 @@ sudo pacman -S --noconfirm --needed \
     gnome-calculator \
     openvpn \
     libnotify \
-    curl
+    curl \
+    bat \
+    proton-vpn-gtk-app
 
 # --- Snapshot & Backup (Snapper for Btrfs) ---
 echo "› Installing Snapper for Btrfs snapshots..."
@@ -122,8 +124,7 @@ echo "› Installing AUR packages (with yay)..."
 yay -S --noconfirm --needed \
     zen-browser-bin \
     obsidian \
-    protonvpn-gui \
-    spotify
+    nordic-theme
 
 #-------------------------------------------------------------------------------
 # SERVICE & SYSTEM CONFIGURATION
