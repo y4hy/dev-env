@@ -114,6 +114,7 @@ echo "› Installing Rust via rustup..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Add cargo to the current session's PATH. The shell rc file will handle future sessions.
 export PATH="$HOME/.cargo/bin:$PATH"
+rustc component add rust-analyzer
 echo "› Rust has been installed successfully."
 
 
@@ -151,6 +152,7 @@ cp -R dotfiles/* ~/.dotfiles
 
 echo "  -> Applying configurations with Stow..."
 cd ~/.dotfiles
+rm -rf ~/.config/fish
 stow fish kitty nvim rofi wp neofetch dunst hyprland
 
 # --- Change Default Shell to Fish ---

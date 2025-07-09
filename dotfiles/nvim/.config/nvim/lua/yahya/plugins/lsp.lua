@@ -32,7 +32,6 @@ return {
         require("mason-lspconfig").setup({
             ensure_installed = {
                 "lua_ls",
-                "rust_analyzer",
             },
             handlers = {
                 function(server_name) -- default handler (optional)
@@ -101,7 +100,7 @@ return {
             underline = false,
             undercurl = false,
             virtual_text = {
-                severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN }
+                severity = { vim.diagnostic.severity.ERROR }
             },
             signs = {
                 severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN }
