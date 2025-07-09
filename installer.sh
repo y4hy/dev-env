@@ -11,7 +11,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 #-------------------------------------------------------------------------------
 echo "› Updating system and installing essential packages..."
 sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm --needed git base-devel linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
+sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
 # AUR HELPER INSTALLATION (yay)
