@@ -6,6 +6,8 @@ set -g fish_greeting
 
 # Look up to Oh My Fish !!!!
 
+# Add last current directory
+
 # =====================================================================
 # KEY BINDINGS & EDITOR
 # =====================================================================

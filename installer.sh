@@ -55,7 +55,8 @@ sudo pacman -S --noconfirm --needed \
     dunst \
     stow \
     wl-clipboard \
-    lxqt-sudo
+    lxqt-sudo \
+    less \
 
 # --- File Management & System Utilities ---
 echo "› Installing file management & system utilities..."
