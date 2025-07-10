@@ -46,7 +46,7 @@ sudo pacman -S --noconfirm --needed pipewire pipewire-jack pipewire-alsa pipewir
 # --- Desktop Environment & Core Apps ---
 echo "› Installing Desktop Environment and core applications..."
 sudo pacman -S --noconfirm --needed \
-    hyprland \
+    hyprland hyprshot \
     neovim \
     kitty \
     fish \
