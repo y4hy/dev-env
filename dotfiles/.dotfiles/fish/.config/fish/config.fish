@@ -70,6 +70,18 @@ function c
     clear
 end
 
+function gs
+    git status
+end
+
+function gpl
+    git pull
+end
+
+function gf
+    git fetch
+end
+
 # =====================================================================
 # HYPRLAND AUTO-LAUNCH
 # =====================================================================
