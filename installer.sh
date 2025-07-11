@@ -125,7 +125,8 @@ echo "› Installing AUR packages (with yay)..."
 yay -S --noconfirm --needed \
     zen-browser-bin \
     obsidian \
-    nordic-theme
+    nordic-theme \
+    neofetch
 
 #-------------------------------------------------------------------------------
 # SERVICE & SYSTEM CONFIGURATION
