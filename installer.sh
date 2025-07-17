@@ -57,6 +57,7 @@ sudo pacman -S --noconfirm --needed \
     wl-clipboard \
     lxqt-sudo \
     less \
+    imv
 
 # --- File Management & System Utilities ---
 echo "› Installing file management & system utilities..."
