@@ -6,6 +6,8 @@ set -g fish_greeting
 
 # Look up to Oh My Fish !!!!
 
+# Add last current directory
+
 # =====================================================================
 # KEY BINDINGS & EDITOR
 # =====================================================================
@@ -66,6 +68,18 @@ end
 
 function c
     clear
+end
+
+function gs
+    git status
+end
+
+function gpl
+    git pull
+end
+
+function gf
+    git fetch
 end
 
 # =====================================================================

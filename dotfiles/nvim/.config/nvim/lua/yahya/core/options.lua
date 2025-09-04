@@ -53,7 +53,7 @@ opt.hlsearch = false
 opt.incsearch = true
 
 -- Set number of lines to keep above and below the cursor
-opt.scrolloff = 8
+opt.scrolloff = 10
 -- Append to 'isfname' option
 opt.isfname:append("@-@")
 
