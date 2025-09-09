@@ -35,8 +35,12 @@ keymap.set("n", "¬", "<cmd>tabn<CR>", { desc = "Go to next tab" }) -- Alt-l
 keymap.set("n", "<leader>o", ":tabnew ", { desc = "Open file in new tab" }) -- open file in new tab
 
 for i = 1, 9 do
-    keymap.set("n", "<leader>" .. i, "<cmd>tabn " .. i .. "<CR>")
+    keymap.set("n", "<A-" .. i .. ">", "<cmd>tabn " .. i .. "<CR>")
+    keymap.set("i", "<A-" .. i .. ">", "<Esc><cmd>tabn " .. i .. "<CR>")
 end
+
+keymap.set({ "n", "i" }, "<A-l>", "<cmd>tabn<CR>", { desc = "Go to next tab (Alt+Tab)" })
+keymap.set({ "n", "i" }, "<A-h>", "<cmd>tabp<CR>", { desc = "Go to previous tab (Alt+Shift+Tab)" })
 
 -- buffer management
 keymap.set("v", "<C-c>", '"+y')

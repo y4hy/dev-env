@@ -32,6 +32,18 @@ return {
         require("mason-lspconfig").setup({
             ensure_installed = {
                 "lua_ls",
+                "gopls",
+                "pyright",
+                "ruff",
+                "clangd",
+                "taplo",
+                "jsonls",
+                "yamlls",
+                "marksman",
+                "bashls",
+                "html",
+                "cssls",
+                "tailwindcss",
             },
             handlers = {
                 function(server_name) -- default handler (optional)
@@ -40,22 +52,6 @@ return {
                     }
                 end,
 
-                zls = function()
-                    local lspconfig = require("lspconfig")
-                    lspconfig.zls.setup({
-                        root_dir = lspconfig.util.root_pattern(".git", "build.zig", "zls.json"),
-                        settings = {
-                            zls = {
-                                enable_inlay_hints = true,
-                                enable_snippets = true,
-                                warn_style = true,
-                            },
-                        },
-                    })
-                    vim.g.zig_fmt_parse_errors = 0
-                    vim.g.zig_fmt_autosave = 0
-
-                end,
                 ["lua_ls"] = function()
                     local lspconfig = require("lspconfig")
                     lspconfig.lua_ls.setup {
@@ -90,7 +86,7 @@ return {
             sources = cmp.config.sources({
                 { name = "copilot", group_index = 2 },
                 { name = 'nvim_lsp' },
-                { name = 'luasnip' }, 
+                { name = 'luasnip' },
             }, {
                 { name = 'buffer' },
             })

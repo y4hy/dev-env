@@ -83,9 +83,21 @@ function gf
 end
 
 # =====================================================================
+# KITTY + TMUX AUTO-LAUNCH
+# =====================================================================
+# Automatically start tmux if running in Kitty and not already in a tmux session.
+if not set -q TMUX and test "$TERM" = "xterm-kitty"
+    # Attach to 'main' session if it exists, otherwise create it.
+    # We removed 'exec' to prevent the terminal from closing on tmux error.
+    tmux new-session -A -s main
+end
+
+# =====================================================================
 # HYPRLAND AUTO-LAUNCH
 # =====================================================================
 # This logic is unchanged and will start Hyprland on TTY1.
 if test -z "$DISPLAY" -a (tty) = "/dev/tty1"
     exec Hyprland
 end
+
+

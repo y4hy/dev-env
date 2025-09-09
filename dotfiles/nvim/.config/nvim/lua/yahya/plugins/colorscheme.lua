@@ -76,36 +76,38 @@ return {
     },
 
     {
-        "rose-pine/neovim",
-        name = "rose-pine",
-        config = function()
-            require('rose-pine').setup({
-                disable_background = true,
-                styles = {
-                    italic = false,
-                },
-            })
-        end
-    },
-
-    {
-        "kdheepak/monochrome.nvim",
-        dependencies = { "rktjmp/lush.nvim" },
-        config = function()
-        end
-    },
-
-    {
         'jesseleite/nvim-noirbuddy',
         dependencies = {
             { 'tjdevries/colorbuddy.nvim' }
         },
-        lazy = false,
         priority = 1000,
+        lazy = false,
         config = function()
             require("noirbuddy").setup()
             ColorMyPencils("noirbuddy")
         end
-    }
+    },
+
+    -- {
+    --     "rose-pine/neovim",
+    --     name = "rose-pine",
+    --     config = function()
+    --         require('rose-pine').setup({
+    --             disable_background = true,
+    --             styles = {
+    --                 italic = false,
+    --             },
+    --         })
+    --         ColorMyPencils("rose-pine-moon")
+    --     end
+    -- },
+    --
+    -- {
+    --     "kdheepak/monochrome.nvim",
+    --     dependencies = { "rktjmp/lush.nvim" },
+    --     config = function()
+    --         ColorMyPencils("monochrome")
+    --     end
+    -- },
 }
 

@@ -14,19 +14,35 @@ sudo pacman -Syu --noconfirm
 sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
-# AUR HELPER INSTALLATION (yay)
+# AUR HELPERS INSTALLATION (yay & paru)
 #-------------------------------------------------------------------------------
-echo "› Installing AUR helper (yay)..."
-if ! command -v yay &> /dev/null; then
-    TEMP_DIR=$(mktemp -d)
-    git clone https://aur.archlinux.org/yay.git "$TEMP_DIR"
-    (cd "$TEMP_DIR" && makepkg -si --noconfirm)
-    rm -rf "$TEMP_DIR"
-    echo "› yay has been installed."
-else
-    echo "› yay is already installed."
+echo "› Installing AUR helpers (yay / paru)..."
+
+install_aur_helper() {
+    local name="$1"
+    local repo="$2"
+    if ! command -v "$name" &> /dev/null; then
+        echo "  -> Installing $name..."
+        local temp_dir
+        temp_dir=$(mktemp -d)
+        git clone "https://aur.archlinux.org/${repo}.git" "$temp_dir"
+        (cd "$temp_dir" && makepkg -si --noconfirm)
+        rm -rf "$temp_dir"
+        echo "  -> $name has been installed."
+    else
+        echo "  -> $name is already installed."
+    fi
+}
+
+install_aur_helper yay yay
+install_aur_helper paru paru
+
+# Update AUR package databases (prefer paru if present)
+if command -v paru &> /dev/null; then
+    paru -Syu --noconfirm
+elif command -v yay &> /dev/null; then
+    yay -Syu --noconfirm
 fi
-yay -Syu --noconfirm
 
 #-------------------------------------------------------------------------------
 # DRIVERS & AUDIO
@@ -63,6 +79,7 @@ sudo pacman -S --noconfirm --needed \
 # --- File Management & System Utilities ---
 echo "› Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
+    tmux \
     dolphin \
     zip \
     unzip \
@@ -123,12 +140,24 @@ sudo pacman -S --noconfirm --needed \
     seahorse
 
 # --- AUR Packages ---
-echo "› Installing AUR packages (with yay)..."
-yay -S --noconfirm --needed \
-    zen-browser-bin \
-    obsidian \
-    nordic-theme \
-    neofetch
+echo "› Installing AUR packages (with paru/yay)..."
+AUR_HELPER=""
+if command -v paru &> /dev/null; then
+    AUR_HELPER="paru"
+elif command -v yay &> /dev/null; then
+    AUR_HELPER="yay"
+else
+    echo "No AUR helper available (yay/paru). Skipping AUR package install." >&2
+fi
+
+if [ -n "$AUR_HELPER" ]; then
+    $AUR_HELPER -S --noconfirm --needed \
+        zen-browser-bin \
+        obsidian \
+        nordic-theme \
+        neofetch \
+        opencode
+fi
 
 #-------------------------------------------------------------------------------
 # SERVICE & SYSTEM CONFIGURATION
