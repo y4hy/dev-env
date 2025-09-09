@@ -243,7 +243,7 @@ echo "  -> Applying configurations with Stow..."
 rm -rf ~/.config/fish
 rm -rf ~/.config/hypr
 # Run stow safely from within the dotfiles directory
-(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland)
+(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux)
 
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
