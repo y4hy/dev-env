@@ -7,16 +7,37 @@ set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 #-------------------------------------------------------------------------------
+# HELPER FUNCTIONS
+#-------------------------------------------------------------------------------
+# Function to make section headers more visible
+log_header() {
+    echo ""
+    echo "################################################################################"
+    echo "### $1"
+    echo "################################################################################"
+}
+
+# Function to display important warnings
+log_warning() {
+    echo ""
+    echo "--------------------------------------------------------------------------------"
+    echo "--> WARNING: $1"
+    echo "--> You need to log out and log back in for the changes to take effect."
+    echo "--------------------------------------------------------------------------------"
+}
+
+
+#-------------------------------------------------------------------------------
 # SYSTEM UPDATE & CORE DEPENDENCIES
 #-------------------------------------------------------------------------------
-echo "› Updating system and installing essential packages..."
+log_header "Updating system and installing core packages..."
 sudo pacman -Syu --noconfirm
 sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
 # AUR HELPERS INSTALLATION (yay & paru)
 #-------------------------------------------------------------------------------
-echo "› Installing AUR helpers (yay / paru)..."
+log_header "Installing AUR helpers (yay / paru)..."
 
 install_aur_helper() {
     local name="$1"
@@ -28,7 +49,7 @@ install_aur_helper() {
         git clone "https://aur.archlinux.org/${repo}.git" "$temp_dir"
         (cd "$temp_dir" && makepkg -si --noconfirm)
         rm -rf "$temp_dir"
-        echo "  -> $name has been installed."
+        echo "  -> $name has been installed successfully."
     else
         echo "  -> $name is already installed."
     fi
@@ -45,9 +66,9 @@ elif command -v yay &> /dev/null; then
 fi
 
 #-------------------------------------------------------------------------------
-# DRIVERS & AUDIO
+# GRAPHICS DRIVERS & AUDIO
 #-------------------------------------------------------------------------------
-echo "› Installing Graphics and Audio drivers..."
+log_header "Installing Graphics and Audio drivers..."
 
 # --- NVIDIA Drivers ---
 sudo pacman -S --noconfirm --needed nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
@@ -60,7 +81,7 @@ sudo pacman -S --noconfirm --needed pipewire pipewire-jack pipewire-alsa pipewir
 #-------------------------------------------------------------------------------
 
 # --- Desktop Environment & Core Apps ---
-echo "› Installing Desktop Environment and core applications..."
+log_header "Installing Desktop Environment and core applications..."
 sudo pacman -S --noconfirm --needed \
     hyprland hyprshot \
     neovim \
@@ -74,13 +95,14 @@ sudo pacman -S --noconfirm --needed \
     lxqt-sudo \
     less \
     imv \
-    libreoffice-fresh \
+    libreoffice-fresh
 
 # --- File Management & System Utilities ---
-echo "› Installing file management & system utilities..."
+log_header "Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
     tmux \
-    dolphin \
+    nemo file-roller nemo-file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
+    xdg-utils \
     zip \
     unzip \
     htop \
@@ -96,11 +118,11 @@ sudo pacman -S --noconfirm --needed \
     proton-vpn-gtk-app
 
 # --- Snapshot & Backup (Snapper for Btrfs) ---
-echo "› Installing Snapper for Btrfs snapshots..."
+log_header "Installing Snapper for Btrfs snapshots..."
 sudo pacman -S --noconfirm --needed snapper snap-pac grub-btrfs
 
 # --- Virtualization ---
-echo "› Installing Virtualization tools (KVM/QEMU/Libvirt)..."
+log_header "Installing Virtualization tools (KVM/QEMU/Libvirt)..."
 sudo pacman -S --noconfirm --needed \
     qemu-desktop \
     virt-manager \
@@ -111,11 +133,11 @@ sudo pacman -S --noconfirm --needed \
     edk2-ovmf
 
 # --- Media Tools ---
-echo "› Installing media tools..."
+log_header "Installing media tools..."
 sudo pacman -S --noconfirm --needed vlc
 
 # --- Fonts ---
-echo "› Installing fonts..."
+log_header "Installing fonts..."
 sudo pacman -S --noconfirm --needed \
     ttf-dejavu \
     ttf-liberation \
@@ -124,7 +146,7 @@ sudo pacman -S --noconfirm --needed \
     noto-fonts-emoji
 
 # --- Development Tools ---
-echo "› Installing development tools..."
+log_header "Installing development tools..."
 sudo pacman -S --noconfirm --needed \
     nodejs \
     npm \
@@ -133,14 +155,14 @@ sudo pacman -S --noconfirm --needed \
     python-pip
 
 # --- Security & Keyring ---
-echo "› Installing security and keyring packages..."
+log_header "Installing security and keyring packages..."
 sudo pacman -S --noconfirm --needed \
     gnome-keyring \
     libsecret \
     seahorse
 
 # --- AUR Packages ---
-echo "› Installing AUR packages (with paru/yay)..."
+log_header "Installing AUR packages (with paru/yay)..."
 AUR_HELPER=""
 if command -v paru &> /dev/null; then
     AUR_HELPER="paru"
@@ -162,20 +184,20 @@ fi
 #-------------------------------------------------------------------------------
 # SERVICE & SYSTEM CONFIGURATION
 #-------------------------------------------------------------------------------
-echo "› Applying system-level configurations..."
+log_header "Applying system-level configurations..."
 
 # --- Configure Docker ---
 echo "  -> Configuring and starting Docker..."
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
-echo "› User $USER has been added to the docker group. You will need to log out and log back in for this to take effect."
+log_warning "User $USER has been added to the 'docker' group."
 
 # --- Configure Libvirt for Virtualization ---
 echo "  -> Configuring Libvirt (KVM)..."
 sudo systemctl enable --now libvirtd.service
 sudo usermod -aG libvirt $USER
-echo "› User $USER has been added to the libvirt group. You will need to log out and log back in for this to take effect."
-echo "› Default virtual network will start on-demand when a VM is launched."
+log_warning "User $USER has been added to the 'libvirt' group."
+echo "  -> The default virtual network will start on-demand when a VM is launched."
 
 # --- Configure Snapper for Btrfs Snapshots ---
 echo "  -> Setting up Snapper..."
@@ -219,19 +241,19 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 #-------------------------------------------------------------------------------
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
-echo "› Installing Rust via rustup..."
+log_header "Installing Rust via rustup..."
 # The -y flag ensures the installation proceeds with default options without prompting.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Add cargo to the current session's PATH. The shell rc file will handle future sessions.
 export PATH="$HOME/.cargo/bin:$PATH"
 rustc component add rust-analyzer
-echo "› Rust has been installed successfully."
+echo "  -> Rust has been installed successfully."
 
 
 #-------------------------------------------------------------------------------
 # USER-LEVEL CONFIGURATION
 #-------------------------------------------------------------------------------
-echo "› Applying user-level configurations..."
+log_header "Applying user-level configurations..."
 
 # --- Dotfiles Setup ---
 echo "  -> Creating dotfiles directory..."
@@ -253,16 +275,27 @@ else
     echo "  -> Default shell is already Fish."
 fi
 
+# --- Set Nemo as Default File Manager ---
+echo "  -> Setting Nemo as the default file manager..."
+xdg-mime default nemo.desktop inode/directory application/x-gnome-saved-search
+
 #-------------------------------------------------------------------------------
 # FINALIZATION
 #-------------------------------------------------------------------------------
 echo ""
+echo "================================================================================"
 echo "✅ System setup is complete!"
-echo "LOG OUT and LOG BACK IN for all group changes (Docker, Libvirt) to take effect."
-echo "After logging back in, you can start 'Virtual Machine Manager' from your application menu."
-echo "It is highly recommended to reboot now to apply all changes (like kernel and drivers)."
+echo ""
+echo "   IMPORTANT NOTES:"
+echo "   - To apply group changes (Docker, Libvirt), you MUST LOG OUT and LOG BACK IN."
+echo "   - After logging back in, you can start 'Virtual Machine Manager' from your application menu."
+echo "   - It is highly recommended to REBOOT your system to apply all changes (like kernel and drivers)."
+echo "================================================================================"
+echo ""
 read -p "Reboot now? (y/N): " choice
 case "$choice" in
   y|Y ) sudo reboot now;;
   * ) echo "Please reboot your system manually to apply all changes.";;
 esac
+
+
