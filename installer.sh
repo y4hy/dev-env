@@ -66,7 +66,7 @@ elif command -v yay &> /dev/null; then
 fi
 
 #-------------------------------------------------------------------------------
-# GRAPHICS DRIVERS & AUDIO
+# DRIVERS & AUDIO
 #-------------------------------------------------------------------------------
 log_header "Installing Graphics and Audio drivers..."
 
@@ -101,7 +101,7 @@ sudo pacman -S --noconfirm --needed \
 log_header "Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
     tmux \
-    nemo file-roller nemo-file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
+    nemo \
     xdg-utils \
     zip \
     unzip \
@@ -266,6 +266,21 @@ rm -rf ~/.config/fish
 rm -rf ~/.config/hypr
 # Run stow safely from within the dotfiles directory
 (cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux)
+
+# --- Tmux Plugin Setup (TPM, Resurrect, Continuum) ---
+echo "  -> Setting up Tmux Plugin Manager (TPM) and plugins..."
+TPM_DIR="$HOME/.tmux/plugins/tpm"
+if [ ! -d "$TPM_DIR" ]; then
+    echo "  -> Cloning TPM repository..."
+    git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
+else
+    echo "  -> TPM repository already exists."
+fi
+
+# Note: Assumes .tmux.conf is managed by stow and includes resurrect/continuum
+echo "  -> Installing Tmux plugins specified in .tmux.conf..."
+# Execute the plugin install script
+"$TPM_DIR/bin/install_plugins"
 
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
