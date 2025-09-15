@@ -26,6 +26,23 @@ log_warning() {
     echo "--------------------------------------------------------------------------------"
 }
 
+#-------------------------------------------------------------------------------
+# PRE-RUN CHECKS & SUDO HANDLING
+#-------------------------------------------------------------------------------
+
+# Ensure the script is NOT run as root
+if [ "$EUID" -eq 0 ]; then
+  echo "Please do not run this script as root. It will use 'sudo' to ask for your password when needed."
+  exit 1
+fi
+
+# Ask for the administrator password upfront and keep it alive.
+log_header "Acquiring sudo privileges..."
+sudo -v
+
+# Keep-alive: update existing `sudo` time stamp until the script has finished.
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
 
 #-------------------------------------------------------------------------------
 # SYSTEM UPDATE & CORE DEPENDENCIES
@@ -39,6 +56,8 @@ sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers
 #-------------------------------------------------------------------------------
 log_header "Installing AUR helpers (yay / paru)..."
 
+# This function should be run as a normal user. `makepkg` will fail if run as root.
+# It will call `sudo` internally when it needs to install packages.
 install_aur_helper() {
     local name="$1"
     local repo="$2"
@@ -59,6 +78,7 @@ install_aur_helper yay yay
 install_aur_helper paru paru
 
 # Update AUR package databases (prefer paru if present)
+# AUR helpers should not be run with sudo. They will prompt for a password if needed.
 if command -v paru &> /dev/null; then
     paru -Syu --noconfirm
 elif command -v yay &> /dev/null; then
@@ -239,6 +259,7 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
 log_header "Installing Rust via rustup..."
+# rustup should be installed as the user, not root.
 # The -y flag ensures the installation proceeds with default options without prompting.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Add cargo to the current session's PATH. The shell rc file will handle future sessions.
@@ -282,6 +303,7 @@ echo "  -> Installing Tmux plugins specified in .tmux.conf..."
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
     echo "  -> Changing default shell to Fish..."
+    # Note: chsh will prompt for your user password. This is a security feature and is expected.
     chsh -s "$(which fish)"
 else
     echo "  -> Default shell is already Fish."
