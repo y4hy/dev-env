@@ -74,7 +74,8 @@ install_aur_helper() {
     fi
 }
 
-install_aur_helper yay yay
+# uncomment if yay is needed
+# install_aur_helper yay yay
 install_aur_helper paru paru
 
 # Update AUR package databases (prefer paru if present)
@@ -115,13 +116,15 @@ sudo pacman -S --noconfirm --needed \
     lxqt-sudo \
     less \
     imv \
-    libreoffice-fresh
+    libreoffice-fresh \
+    papirus-icon-theme \
+    nwg-look
 
 # --- File Management & System Utilities ---
 log_header "Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
     tmux \
-    nemo file-roller nemo-file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
+    nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
     xdg-utils \
     zip \
     unzip \
@@ -196,9 +199,10 @@ if [ -n "$AUR_HELPER" ]; then
     $AUR_HELPER -S --noconfirm --needed \
         zen-browser-bin \
         obsidian \
-        nordic-theme \
         neofetch \
-        opencode
+        opencode \
+        catppuccin-gtk-theme-mocha \
+        bibata-modern-ice-cursor-theme
 fi
 
 #-------------------------------------------------------------------------------
@@ -220,15 +224,36 @@ log_warning "User $USER has been added to the 'libvirt' group."
 echo "  -> The default virtual network will start on-demand when a VM is launched."
 
 # --- Configure Snapper for Btrfs Snapshots ---
-echo "  -> Setting up Snapper..."
+log_header "Configuring Snapper for Btrfs snapshots..."
+
 if [ "$(stat -f -c %T /)" = "btrfs" ]; then
+    # Only proceed if the Snapper config for root doesn't already exist.
     if [ ! -f /etc/snapper/configs/root ]; then
-        echo "  -> No existing snapper config found. Creating a new one for '/'..."
+        echo "  -> Snapper config not found. Proceeding with setup..."
+
+        # WORKAROUND: Handle case where archinstall creates /.snapshots but not the config file.
+        # This is the cause of the "Device or resource busy" and "file exists" errors.
+        if [ -d "/.snapshots" ]; then
+            echo "  -> Detected existing /.snapshots. Applying workaround for archinstall bug..."
+            sudo umount /.snapshots
+            sudo mv /.snapshots /.snapshots.bak
+        fi
+
+        # Create the Snapper config. This will now succeed.
         sudo snapper -c root create-config /
+
+        # If we applied the workaround, clean up and restore the original subvolume.
+        if [ -d "/.snapshots.bak" ]; then
+            echo "  -> Cleaning up and restoring original snapshot subvolume..."
+            sudo btrfs subvolume delete /.snapshots
+            sudo mv /.snapshots.bak /.snapshots
+            sudo mount -a # Remount the correct subvolume from /etc/fstab
+        fi
     else
-        echo "  -> Existing Snapper config found. Assuming it's correctly set up by archinstall."
+        echo "  -> Existing Snapper config found. No action needed."
     fi
 
+    # Ensure the services are enabled and running.
     echo "  -> Enabling Snapper services..."
     sudo systemctl enable --now snapper-timeline.timer
     sudo systemctl enable --now snapper-cleanup.timer
@@ -284,6 +309,21 @@ rm -rf ~/.config/fish
 rm -rf ~/.config/hypr
 # Run stow safely from within the dotfiles directory
 (cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux)
+
+# --- Set GTK Theme (Catppuccin) ---
+echo "  -> Setting GTK theme, icons, and cursor..."
+gsettings set org.gnome.desktop.interface gtk-theme 'Catppuccin-Mocha-Standard-Blue-Dark'
+gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
+gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Ice'
+
+# --- Configure Hyprland to use the GTK Theme ---
+HYPR_CONF="$HOME/.config/hypr/hyprland.conf"
+THEME_ENV="env = GTK_THEME,Catppuccin-Mocha-Standard-Blue-Dark"
+if [ -f "$HYPR_CONF" ] && ! grep -q "GTK_THEME" "$HYPR_CONF"; then
+    echo "  -> Appending GTK_THEME environment variable to hyprland.conf..."
+    # Add a newline and the comment/variable to the end of the file
+    echo -e "\n# Set GTK theme for the session\n$THEME_ENV" >> "$HYPR_CONF"
+fi
 
 # --- Tmux Plugin Setup (TPM, Resurrect, Continuum) ---
 echo "  -> Setting up Tmux Plugin Manager (TPM) and plugins..."
