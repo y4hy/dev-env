@@ -45,6 +45,7 @@ fish_add_path ~/.cargo/bin
 set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
 set -x SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
 set -x BROWSER 'zen-browser'
+set -e SSH_ASKPASS
 
 # =====================================================================
 # ALIASES
@@ -95,31 +96,6 @@ if test -z "$DISPLAY" -a (tty) = "/dev/tty1"
     # Bu komuttan sonra bu script'teki hiçbir şey çalışmaz.
     exec Hyprland
 end
-
-# # İlk olarak, sistemde 'tmux' komutunun var olup olmadığını kontrol et (quiet mode)
-# if command -q tmux
-#     # İkinci olarak, zaten bir tmux oturumunun içinde OLMADIĞIMIZI kontrol et.
-#     # Bu, iç içe oturum (nested session) hatasını önleyen en kritik adımdır.
-#     if not set -q TMUX
-#         # 'main' isminde bir oturum var mı diye kontrol et (hata mesajlarını gizle)
-#         if tmux has-session -t main ^/dev/null
-#             # Varsa, 'main' oturumuna bağlan
-#             tmux attach-session -t main
-#         else
-#             # 'main' yoksa, başka herhangi bir oturum var mı diye bak.
-#             # `test -n` komutu, parantez içindeki komutun bir çıktı üretip üretmediğini kontrol eder.
-#             if test -n (tmux list-sessions -F '#{session_name}' ^/dev/null)
-#                 # Varsa, ilk oturumun ismini 'session' değişkenine ata
-#                 set session (tmux list-sessions -F '#{session_name}' | head -n1)
-#                 # Ve o oturuma bağlan
-#                 tmux attach-session -t "$session"
-#             else
-#                 # Hiç oturum yoksa, 'main' isminde yeni bir tane oluştur
-#                 tmux new-session -s main -c "$HOME"
-#             end
-#         end
-#     end
-# end
 
 if status is-interactive; and not set -q TMUX
     tmux attach-session 2>/dev/null || tmux new-session -s main
