@@ -101,7 +101,7 @@ sudo pacman -S --noconfirm --needed \
 log_header "Installing file management & system utilities..."
 sudo pacman -S --noconfirm --needed \
     tmux \
-    nemo \
+    nemo file-roller nemo-file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
     xdg-utils \
     zip \
     unzip \
@@ -201,17 +201,14 @@ echo "  -> The default virtual network will start on-demand when a VM is launche
 
 # --- Configure Snapper for Btrfs Snapshots ---
 echo "  -> Setting up Snapper..."
-# Check if the root filesystem is Btrfs before proceeding
 if [ "$(stat -f -c %T /)" = "btrfs" ]; then
-    # Create a default configuration for the root filesystem if it doesn't exist
     if [ ! -f /etc/snapper/configs/root ]; then
-        echo "  -> Creating Snapper config for '/'..."
+        echo "  -> No existing snapper config found. Creating a new one for '/'..."
         sudo snapper -c root create-config /
     else
-        echo "  -> Snapper config for '/' already exists."
+        echo "  -> Existing Snapper config found. Assuming it's correctly set up by archinstall."
     fi
 
-    # Enable and start the services/timers for automatic snapshots and cleanup
     echo "  -> Enabling Snapper services..."
     sudo systemctl enable --now snapper-timeline.timer
     sudo systemctl enable --now snapper-cleanup.timer
@@ -301,10 +298,10 @@ echo ""
 echo "================================================================================"
 echo "✅ System setup is complete!"
 echo ""
-echo "   IMPORTANT NOTES:"
-echo "   - To apply group changes (Docker, Libvirt), you MUST LOG OUT and LOG BACK IN."
-echo "   - After logging back in, you can start 'Virtual Machine Manager' from your application menu."
-echo "   - It is highly recommended to REBOOT your system to apply all changes (like kernel and drivers)."
+echo "    IMPORTANT NOTES:"
+echo "    - To apply group changes (Docker, Libvirt), you MUST LOG OUT and LOG BACK IN."
+echo "    - After logging back in, you can start 'Virtual Machine Manager' from your application menu."
+echo "    - It is highly recommended to REBOOT your system to apply all changes (like kernel and drivers)."
 echo "================================================================================"
 echo ""
 read -p "Reboot now? (y/N): " choice
@@ -312,5 +309,3 @@ case "$choice" in
   y|Y ) sudo reboot now;;
   * ) echo "Please reboot your system manually to apply all changes.";;
 esac
-
-
