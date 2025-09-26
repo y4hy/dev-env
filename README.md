@@ -2,7 +2,7 @@
 
 A personal development environment bootstrap and dotfiles repository.
 
-This project helps set up a consistent developer workstation by installing tools, configuring editors and shells, and applying GPU-related settings when needed. It also includes personal configuration files (dotfiles), likely including Neovim configuration written in Lua.
+This project helps set up a consistent developer workstation by installing tools, configuring editors and shells, and applying GPU-related settings when needed. It also includes personal configuration files (dotfiles), likely including Neovim configuration.
 
 ## Quick start
 
