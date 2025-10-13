@@ -20,8 +20,8 @@ set -x EDITOR nvim
 
 # Cursor's theme and shape
 if status is-interactive
-    set fish_cursor_default block
-    set fish_cursor_insert block
+    set fish_cursor_default block blink
+    set fish_cursor_insert block blink
     set fish_cursor_replace_one block
     set fish_cursor_visual block
 end
