@@ -45,7 +45,7 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
 
 #-------------------------------------------------------------------------------
-# ### NEW ### INSTALLATION MODE SELECTION
+# INSTALLATION MODE SELECTION
 #-------------------------------------------------------------------------------
 log_header "Installation Environment"
 INSTALL_FOR_VM="false"
