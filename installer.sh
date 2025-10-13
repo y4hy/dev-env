@@ -45,6 +45,23 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
 
 #-------------------------------------------------------------------------------
+# ### NEW ### INSTALLATION MODE SELECTION
+#-------------------------------------------------------------------------------
+log_header "Installation Environment"
+INSTALL_FOR_VM="false"
+read -p "Are you installing on a Virtual Machine (VM)? (y/N): " choice
+case "$choice" in
+  y|Y )
+    INSTALL_FOR_VM="true"
+    echo "-> VM installation mode selected. NVIDIA drivers will be skipped."
+    ;;
+  * )
+    echo "-> Bare-metal installation mode selected. NVIDIA drivers will be installed."
+    ;;
+esac
+
+
+#-------------------------------------------------------------------------------
 # SYSTEM UPDATE & CORE DEPENDENCIES
 #-------------------------------------------------------------------------------
 log_header "Updating system and installing core packages..."
@@ -87,14 +104,20 @@ elif command -v yay &> /dev/null; then
 fi
 
 #-------------------------------------------------------------------------------
-# DRIVERS & AUDIO
+# ### MODIFIED ### DRIVERS & AUDIO
 #-------------------------------------------------------------------------------
 log_header "Installing Graphics and Audio drivers..."
 
-# --- NVIDIA Drivers ---
-sudo pacman -S --noconfirm --needed nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
+if [ "$INSTALL_FOR_VM" = "false" ]; then
+    # --- NVIDIA Drivers (Bare-metal only) ---
+    echo " -> Installing NVIDIA drivers for bare-metal system..."
+    sudo pacman -S --noconfirm --needed nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
+else
+    echo " -> Skipping NVIDIA drivers (VM installation)."
+fi
 
-# --- Audio - PipeWire ---
+# --- Audio - PipeWire (Install for both VM and bare-metal) ---
+echo " -> Installing audio services (PipeWire)..."
 sudo pacman -S --noconfirm --needed pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 
 #-------------------------------------------------------------------------------
@@ -262,14 +285,18 @@ else
     echo "  -> Skipping Snapper setup: '/' is not a Btrfs filesystem."
 fi
 
-# --- Configure GRUB and mkinitcpio for NVIDIA ---
-echo "  -> Copying GRUB and mkinitcpio configs..."
-sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
-sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
+# --- ### MODIFIED ### Configure GRUB and mkinitcpio for NVIDIA ---
+if [ "$INSTALL_FOR_VM" = "false" ]; then
+    echo "  -> Configuring GRUB and mkinitcpio for NVIDIA..."
+    sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
+    sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
 
-echo "  -> Regenerating initramfs and GRUB config..."
-sudo mkinitcpio -P
-sudo grub-mkconfig -o /boot/grub/grub.cfg
+    echo "  -> Regenerating initramfs and GRUB config..."
+    sudo mkinitcpio -P
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+else
+    echo "  -> Skipping NVIDIA-specific GRUB and mkinitcpio configuration."
+fi
 
 # --- Configure PAM for GNOME Keyring ---
 echo "  -> Setting up PAM for Keyring..."
