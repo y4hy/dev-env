@@ -1,11 +1,7 @@
 #!/bin/bash
 
 # ===============================================================================
-# Arch Linux Hyprland Setup Script (Improved Version)
-#
-# This script automates the installation and configuration of a Hyprland desktop
-# environment on Arch Linux. It is optimized for both Virtual Machine (VM) and
-# bare-metal installations.
+# Arch Linux Hyprland Setup Script by y4hy
 # ===============================================================================
 
 # Exit immediately if a command exits with a non-zero status.
@@ -106,41 +102,28 @@ fi
 
 #-------------------------------------------------------------------------------
 # PACKAGE LIST DEFINITIONS
-# Change: Packages are grouped into Bash arrays for easier management.
 #-------------------------------------------------------------------------------
 
 # --- Base Pacman packages required for both installation types ---
 base_pacman_packages=(
-    # Desktop Environment & Core Apps
     hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look wlogout polkit-kde-agent
-    # File Management & System Utilities
     tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
-    # Networking
     network-manager
-    # Snapshot & Backup (for Btrfs)
-    snapper snap-pac grub-btrfs
-    # Media Tools
     vlc
-    # Audio - PipeWire
     pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
-    # Fonts
     ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji
-    # Development Tools
     nodejs npm docker docker-compose python-pip
-    # Security & Keyring
     gnome-keyring libsecret seahorse
 )
 
 # --- Pacman packages to be installed only on bare-metal ---
 bare_metal_pacman_packages=(
-    # NVIDIA Drivers
     nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
-    # Bluetooth
     bluez bluez-utils blueman
-    # Virtualization (Nested virtualization is not usually desired in VMs)
     qemu-desktop virt-manager libvirt dnsmasq vde2 bridge-utils edk2-ovmf
+    snapper snap-pac grub-btrfs
 )
 
 # --- Base AUR packages required for both installation types ---
@@ -155,7 +138,7 @@ base_aur_packages=(
 
 # --- AUR packages to be installed only on bare-metal ---
 bare_metal_aur_packages=(
-    coolercontrol # Requires access to hardware sensors
+    coolercontrol
 )
 
 #-------------------------------------------------------------------------------
@@ -195,13 +178,11 @@ log_header "Applying system-level configurations..."
 echo "   -> Enabling NetworkManager..."
 sudo systemctl enable --now NetworkManager.service
 
-# Enable the Bluetooth service only if the package is installed
 if pacman -Q blueman &>/dev/null; then
     echo "   -> Enabling Bluetooth service..."
     sudo systemctl enable --now bluetooth.service
 fi
 
-# Enable the fan control service only if the package is installed
 if pacman -Q coolercontrol &>/dev/null; then
     echo "   -> Starting coolercontrol service..."
     sudo systemctl enable --now coolercontrold.service
@@ -222,9 +203,9 @@ if pacman -Q libvirt &>/dev/null; then
     echo "   -> The default virtual network will start on-demand when a VM is launched."
 fi
 
-# --- Configure Snapper for Btrfs ---
-log_header "Configuring Snapper for Btrfs snapshots..."
-if [ "$(stat -f -c %T /)" = "btrfs" ]; then
+# --- Configure Snapper for Btrfs (BARE-METAL ONLY) ---
+if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -f -c %T /)" = "btrfs" ]; then
+    log_header "Configuring Snapper for Btrfs snapshots..."
     if [ ! -f /etc/snapper/configs/root ]; then
         echo "   -> Snapper config not found. Proceeding with setup..."
         # ... (Your existing Snapper logic can remain here) ...
@@ -237,13 +218,12 @@ if [ "$(stat -f -c %T /)" = "btrfs" ]; then
     sudo systemctl enable --now snapper-cleanup.timer
     sudo systemctl enable --now grub-btrfsd.service
 else
-    echo "   -> Skipping Snapper setup: '/' is not a Btrfs filesystem."
+    echo "-> Skipping Snapper setup (Not a bare-metal Btrfs system)."
 fi
 
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
-    # ... (Your existing NVIDIA config logic can remain here) ...
     echo "   -> Regenerating initramfs and GRUB config..."
     sudo mkinitcpio -P
     sudo grub-mkconfig -o /boot/grub/grub.cfg
@@ -253,7 +233,6 @@ fi
 
 # --- Configure PAM for GNOME Keyring ---
 echo "   -> Setting up PAM for Keyring..."
-# ... (Your existing PAM config logic can remain here) ...
 
 # --- Configure Git to use libsecret ---
 echo "   -> Configuring Git credential helper..."
@@ -265,7 +244,6 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 #-------------------------------------------------------------------------------
 log_header "Installing Rust via rustup..."
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-# Change: Make the PATH effective for the current session immediately.
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup component add rust-analyzer
 echo "   -> Rust has been installed successfully."
@@ -297,7 +275,6 @@ TPM_DIR="$HOME/.tmux/plugins/tpm"
 if [ ! -d "$TPM_DIR" ]; then
     git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
 fi
-# Install plugins in the background to avoid blocking the script
 "$TPM_DIR/bin/install_plugins" &
 
 # --- Change Default Shell to Fish ---
