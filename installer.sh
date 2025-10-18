@@ -108,7 +108,7 @@ fi
 pacman_packages_base=(
     # Desktop Environment & Core Apps
     hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
-    imv libreoffice-fresh papirus-icon-theme nwg-look wlogout polkit-kde-agent neofetch
+    imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent neofetch
     # File Management & System Utilities
     tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
@@ -143,6 +143,7 @@ aur_packages_base=(
     opencode
     yaru-colors-gtk-theme
     bibata-cursor-theme
+    wlogout
 )
 aur_packages_bare_metal=(
     # Hardware specific tools
