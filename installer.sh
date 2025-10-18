@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# ===============================================================================
+# Arch Linux Hyprland Setup Script
+#
+# This script automates the installation and configuration of a Hyprland desktop
+# environment on Arch Linux.
+# ===============================================================================
+
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
@@ -69,42 +76,36 @@ sudo pacman -Syu --noconfirm
 sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
-# AUR HELPERS INSTALLATION (yay & paru)
+# AUR HELPER INSTALLATION (paru)
 #-------------------------------------------------------------------------------
-log_header "Installing AUR helpers (yay / paru)..."
+log_header "Installing AUR helper (paru)..."
 
 # This function should be run as a normal user. `makepkg` will fail if run as root.
-# It will call `sudo` internally when it needs to install packages.
 install_aur_helper() {
     local name="$1"
     local repo="$2"
     if ! command -v "$name" &> /dev/null; then
-        echo "  -> Installing $name..."
+        echo "   -> Installing $name..."
         local temp_dir
         temp_dir=$(mktemp -d)
         git clone "https://aur.archlinux.org/${repo}.git" "$temp_dir"
         (cd "$temp_dir" && makepkg -si --noconfirm)
         rm -rf "$temp_dir"
-        echo "  -> $name has been installed successfully."
+        echo "   -> $name has been installed successfully."
     else
-        echo "  -> $name is already installed."
+        echo "   -> $name is already installed."
     fi
 }
 
-# uncomment if yay is needed
-# install_aur_helper yay yay
 install_aur_helper paru paru
 
-# Update AUR package databases (prefer paru if present)
-# AUR helpers should not be run with sudo. They will prompt for a password if needed.
+# Update AUR package databases with paru
 if command -v paru &> /dev/null; then
     paru -Syu --noconfirm
-elif command -v yay &> /dev/null; then
-    yay -Syu --noconfirm
 fi
 
 #-------------------------------------------------------------------------------
-# ### MODIFIED ### DRIVERS & AUDIO
+# DRIVERS & AUDIO
 #-------------------------------------------------------------------------------
 log_header "Installing Graphics and Audio drivers..."
 
@@ -116,7 +117,7 @@ else
     echo " -> Skipping NVIDIA drivers (VM installation)."
 fi
 
-# --- Audio - PipeWire (Install for both VM and bare-metal) ---
+# --- Audio - PipeWire ---
 echo " -> Installing audio services (PipeWire)..."
 sudo pacman -S --noconfirm --needed pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
 
@@ -141,7 +142,9 @@ sudo pacman -S --noconfirm --needed \
     imv \
     libreoffice-fresh \
     papirus-icon-theme \
-    nwg-look
+    nwg-look \
+    wlogout \
+    polkit-kde-agent
 
 # --- File Management & System Utilities ---
 log_header "Installing file management & system utilities..."
@@ -149,19 +152,19 @@ sudo pacman -S --noconfirm --needed \
     tmux \
     nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib \
     xdg-utils \
-    zip \
-    unzip \
-    htop \
-    locate \
-    fuse3 \
-    rclone \
+    zip unzip \
+    btop locate fuse3 \
     syncthing \
     gnome-calculator \
-    openvpn \
-    libnotify \
-    curl \
-    bat \
+    openvpn libnotify curl bat \
     proton-vpn-gtk-app
+
+# --- Networking & Bluetooth ---
+log_header "Installing networking and Bluetooth..."
+sudo pacman -S --noconfirm --needed \
+    network-manager \
+    bluez bluez-utils \
+    blueman
 
 # --- Snapshot & Backup (Snapper for Btrfs) ---
 log_header "Installing Snapper for Btrfs snapshots..."
@@ -173,9 +176,7 @@ sudo pacman -S --noconfirm --needed \
     qemu-desktop \
     virt-manager \
     libvirt \
-    dnsmasq \
-    vde2 \
-    bridge-utils \
+    dnsmasq vde2 bridge-utils \
     edk2-ovmf
 
 # --- Media Tools ---
@@ -185,19 +186,14 @@ sudo pacman -S --noconfirm --needed vlc
 # --- Fonts ---
 log_header "Installing fonts..."
 sudo pacman -S --noconfirm --needed \
-    ttf-dejavu \
-    ttf-liberation \
-    noto-fonts \
-    noto-fonts-cjk \
-    noto-fonts-emoji
+    ttf-dejavu ttf-liberation \
+    noto-fonts noto-fonts-cjk noto-fonts-emoji
 
 # --- Development Tools ---
 log_header "Installing development tools..."
 sudo pacman -S --noconfirm --needed \
-    nodejs \
-    npm \
-    docker \
-    docker-compose \
+    nodejs npm \
+    docker docker-compose \
     python-pip
 
 # --- Security & Keyring ---
@@ -208,24 +204,18 @@ sudo pacman -S --noconfirm --needed \
     seahorse
 
 # --- AUR Packages ---
-log_header "Installing AUR packages (with paru/yay)..."
-AUR_HELPER=""
+log_header "Installing AUR packages (with paru)..."
 if command -v paru &> /dev/null; then
-    AUR_HELPER="paru"
-elif command -v yay &> /dev/null; then
-    AUR_HELPER="yay"
-else
-    echo "No AUR helper available (yay/paru). Skipping AUR package install." >&2
-fi
-
-if [ -n "$AUR_HELPER" ]; then
-    $AUR_HELPER -S --noconfirm --needed \
+    paru -S --noconfirm --needed \
         zen-browser-bin \
         obsidian \
         neofetch \
         opencode \
-        catppuccin-gtk-theme-mocha \
-        bibata-modern-ice-cursor-theme
+        coolercontrol \
+        yaru-colors-gtk-theme \
+        bibata-cursor-theme
+else
+    echo "AUR helper 'paru' not found. Skipping AUR package installation." >&2
 fi
 
 #-------------------------------------------------------------------------------
@@ -233,77 +223,94 @@ fi
 #-------------------------------------------------------------------------------
 log_header "Applying system-level configurations..."
 
+# --- Enable Core Services (Networking, Bluetooth) ---
+echo "   -> Enabling NetworkManager..."
+sudo systemctl enable --now NetworkManager.service
+echo "   -> Enabling Bluetooth service..."
+sudo systemctl enable --now bluetooth.service
+
+# --- Configure Fan Controlling ---
+echo "   -> Starting coolercontrol..."
+sudo systemctl enable --now coolercontrold.service
+
 # --- Configure Docker ---
-echo "  -> Configuring and starting Docker..."
+echo "   -> Configuring and starting Docker..."
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 log_warning "User $USER has been added to the 'docker' group."
 
 # --- Configure Libvirt for Virtualization ---
-echo "  -> Configuring Libvirt (KVM)..."
+echo "   -> Configuring Libvirt (KVM)..."
 sudo systemctl enable --now libvirtd.service
 sudo usermod -aG libvirt $USER
 log_warning "User $USER has been added to the 'libvirt' group."
-echo "  -> The default virtual network will start on-demand when a VM is launched."
+echo "   -> The default virtual network will start on-demand when a VM is launched."
 
 # --- Configure Snapper for Btrfs Snapshots ---
 log_header "Configuring Snapper for Btrfs snapshots..."
-
 if [ "$(stat -f -c %T /)" = "btrfs" ]; then
-    # Only proceed if the Snapper config for root doesn't already exist.
     if [ ! -f /etc/snapper/configs/root ]; then
-        echo "  -> Snapper config not found. Proceeding with setup..."
-
-        # WORKAROUND: Handle case where archinstall creates /.snapshots but not the config file.
-        # This is the cause of the "Device or resource busy" and "file exists" errors.
+        echo "   -> Snapper config not found. Proceeding with setup..."
         if [ -d "/.snapshots" ]; then
-            echo "  -> Detected existing /.snapshots. Applying workaround for archinstall bug..."
+            echo "   -> Detected existing /.snapshots. Applying workaround..."
             sudo umount /.snapshots
             sudo mv /.snapshots /.snapshots.bak
         fi
-
-        # Create the Snapper config. This will now succeed.
         sudo snapper -c root create-config /
-
-        # If we applied the workaround, clean up and restore the original subvolume.
         if [ -d "/.snapshots.bak" ]; then
-            echo "  -> Cleaning up and restoring original snapshot subvolume..."
+            echo "   -> Cleaning up and restoring original snapshot subvolume..."
             sudo btrfs subvolume delete /.snapshots
             sudo mv /.snapshots.bak /.snapshots
-            sudo mount -a # Remount the correct subvolume from /etc/fstab
+            sudo mount -a
         fi
     else
-        echo "  -> Existing Snapper config found. No action needed."
+        echo "   -> Existing Snapper config found. No action needed."
     fi
 
-    # Ensure the services are enabled and running.
-    echo "  -> Enabling Snapper services..."
+    echo "   -> Enabling Snapper services..."
     sudo systemctl enable --now snapper-timeline.timer
     sudo systemctl enable --now snapper-cleanup.timer
     sudo systemctl enable --now grub-btrfsd.service
 else
-    echo "  -> Skipping Snapper setup: '/' is not a Btrfs filesystem."
+    echo "   -> Skipping Snapper setup: '/' is not a Btrfs filesystem."
 fi
 
-# --- ### MODIFIED ### Configure GRUB and mkinitcpio for NVIDIA ---
+# --- Configure GRUB and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ]; then
-    echo "  -> Configuring GRUB and mkinitcpio for NVIDIA..."
-    sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
-    sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
+    echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
+    NVIDIA_GRUB_CONF="$SCRIPT_DIR/nvidia/grub"
+    NVIDIA_MKINIT_CONF="$SCRIPT_DIR/nvidia/mkinitcpio"
 
-    echo "  -> Regenerating initramfs and GRUB config..."
+    if [ -f "$NVIDIA_GRUB_CONF" ]; then
+        sudo cp "$NVIDIA_GRUB_CONF" /etc/default/grub
+    else
+        echo "   -> WARNING: NVIDIA GRUB config not found at '$NVIDIA_GRUB_CONF'. Skipping."
+    fi
+
+    if [ -f "$NVIDIA_MKINIT_CONF" ]; then
+        sudo cp "$NVIDIA_MKINIT_CONF" /etc/mkinitcpio.conf
+    else
+        echo "   -> WARNING: NVIDIA mkinitcpio config not found at '$NVIDIA_MKINIT_CONF'. Skipping."
+    fi
+
+    echo "   -> Regenerating initramfs and GRUB config..."
     sudo mkinitcpio -P
     sudo grub-mkconfig -o /boot/grub/grub.cfg
 else
-    echo "  -> Skipping NVIDIA-specific GRUB and mkinitcpio configuration."
+    echo "   -> Skipping NVIDIA-specific GRUB and mkinitcpio configuration."
 fi
 
 # --- Configure PAM for GNOME Keyring ---
-echo "  -> Setting up PAM for Keyring..."
-sudo cp "$SCRIPT_DIR/keyring/login" /etc/pam.d/login
+echo "   -> Setting up PAM for Keyring..."
+KEYRING_LOGIN_CONF="$SCRIPT_DIR/keyring/login"
+if [ -f "$KEYRING_LOGIN_CONF" ]; then
+    sudo cp "$KEYRING_LOGIN_CONF" /etc/pam.d/login
+else
+    echo "   -> WARNING: Keyring PAM config not found at '$KEYRING_LOGIN_CONF'. Skipping."
+fi
 
 # --- Configure Git to use libsecret ---
-echo "  -> Configuring Git credential helper..."
+echo "   -> Configuring Git credential helper..."
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 
 
@@ -311,13 +318,10 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
 log_header "Installing Rust via rustup..."
-# rustup should be installed as the user, not root.
-# The -y flag ensures the installation proceeds with default options without prompting.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-# Add cargo to the current session's PATH. The shell rc file will handle future sessions.
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup component add rust-analyzer
-echo "  -> Rust has been installed successfully."
+echo "   -> Rust has been installed successfully."
 
 
 #-------------------------------------------------------------------------------
@@ -326,58 +330,46 @@ echo "  -> Rust has been installed successfully."
 log_header "Applying user-level configurations..."
 
 # --- Dotfiles Setup ---
-echo "  -> Creating dotfiles directory..."
+echo "   -> Creating dotfiles directory..."
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles
 
-echo "  -> Applying configurations with Stow..."
-# Remove potential conflicts before stowing
-rm -rf ~/.config/fish
-rm -rf ~/.config/hypr
-# Run stow safely from within the dotfiles directory
+echo "   -> Applying configurations with Stow..."
+rm -rf ~/.config/fish ~/.config/hypr
 (cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux)
 
-# --- Set GTK Theme (Catppuccin) ---
-echo "  -> Setting GTK theme, icons, and cursor..."
-gsettings set org.gnome.desktop.interface gtk-theme 'Catppuccin-Mocha-Standard-Blue-Dark'
+# --- Set GTK Theme (Yaru) ---
+echo "   -> Setting GTK theme, icons, and cursor..."
+gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Ice'
 
 # --- Configure Hyprland to use the GTK Theme ---
 HYPR_CONF="$HOME/.config/hypr/hyprland.conf"
-THEME_ENV="env = GTK_THEME,Catppuccin-Mocha-Standard-Blue-Dark"
+THEME_ENV="env = GTK_THEME,Yaru-Grey-dark"
 if [ -f "$HYPR_CONF" ] && ! grep -q "GTK_THEME" "$HYPR_CONF"; then
-    echo "  -> Appending GTK_THEME environment variable to hyprland.conf..."
-    # Add a newline and the comment/variable to the end of the file
+    echo "   -> Appending GTK_THEME environment variable to hyprland.conf..."
     echo -e "\n# Set GTK theme for the session\n$THEME_ENV" >> "$HYPR_CONF"
 fi
 
-# --- Tmux Plugin Setup (TPM, Resurrect, Continuum) ---
-echo "  -> Setting up Tmux Plugin Manager (TPM) and plugins..."
+# --- Tmux Plugin Setup (TPM) ---
+echo "   -> Setting up Tmux Plugin Manager (TPM) and plugins..."
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if [ ! -d "$TPM_DIR" ]; then
-    echo "  -> Cloning TPM repository..."
     git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
-else
-    echo "  -> TPM repository already exists."
 fi
-
-# Note: Assumes .tmux.conf is managed by stow and includes resurrect/continuum
-echo "  -> Installing Tmux plugins specified in .tmux.conf..."
-# Execute the plugin install script
 "$TPM_DIR/bin/install_plugins"
 
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
-    echo "  -> Changing default shell to Fish..."
-    # Note: chsh will prompt for your user password. This is a security feature and is expected.
+    echo "   -> Changing default shell to Fish..."
     chsh -s "$(which fish)"
 else
-    echo "  -> Default shell is already Fish."
+    echo "   -> Default shell is already Fish."
 fi
 
 # --- Set Nemo as Default File Manager ---
-echo "  -> Setting Nemo as the default file manager..."
+echo "   -> Setting Nemo as the default file manager..."
 xdg-mime default nemo.desktop inode/directory application/x-gnome-saved-search
 
 #-------------------------------------------------------------------------------
@@ -387,10 +379,9 @@ echo ""
 echo "================================================================================"
 echo "✅ System setup is complete!"
 echo ""
-echo "    IMPORTANT NOTES:"
+echo "    IMPORTANT NOTES & NEXT STEPS:"
 echo "    - To apply group changes (Docker, Libvirt), you MUST LOG OUT and LOG BACK IN."
-echo "    - After logging back in, you can start 'Virtual Machine Manager' from your application menu."
-echo "    - It is highly recommended to REBOOT your system to apply all changes (like kernel and drivers)."
+echo "    - It is highly recommended to REBOOT to apply all changes (kernel, drivers, etc.)."
 echo "================================================================================"
 echo ""
 read -p "Reboot now? (y/N): " choice
