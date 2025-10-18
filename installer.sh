@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===============================================================================
-# Arch Linux Hyprland Setup Script by y4hy
+# Arch Linux Hyprland Setup Script 
 # ===============================================================================
 
 # Exit immediately if a command exits with a non-zero status.
@@ -104,40 +104,48 @@ fi
 # PACKAGE LIST DEFINITIONS
 #-------------------------------------------------------------------------------
 
-# --- Base Pacman packages required for both installation types ---
-base_pacman_packages=(
+# --- Official Arch Repositories (Pacman) ---
+pacman_packages_base=(
+    # Desktop Environment & Core Apps
     hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
-    imv libreoffice-fresh papirus-icon-theme nwg-look wlogout polkit-kde-agent
+    imv libreoffice-fresh papirus-icon-theme nwg-look wlogout polkit-kde-agent neofetch
+    # File Management & System Utilities
     tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
+    # Networking
     network-manager
+    # Media Tools
     vlc
+    # Audio - PipeWire
     pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
+    # Fonts
     ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji
+    # Development Tools
     nodejs npm docker docker-compose python-pip
+    # Security & Keyring
     gnome-keyring libsecret seahorse
 )
-
-# --- Pacman packages to be installed only on bare-metal ---
-bare_metal_pacman_packages=(
+pacman_packages_bare_metal=(
+    # Graphics Drivers
     nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
+    # Bluetooth
     bluez bluez-utils blueman
+    # Virtualization
     qemu-desktop virt-manager libvirt dnsmasq vde2 bridge-utils edk2-ovmf
+    # Btrfs Tools
     snapper snap-pac grub-btrfs
 )
 
-# --- Base AUR packages required for both installation types ---
-base_aur_packages=(
+# --- Arch User Repository (AUR / Paru) ---
+aur_packages_base=(
     zen-browser-bin
     obsidian
-    neofetch
     opencode
     yaru-colors-gtk-theme
     bibata-cursor-theme
 )
-
-# --- AUR packages to be installed only on bare-metal ---
-bare_metal_aur_packages=(
+aur_packages_bare_metal=(
+    # Hardware specific tools
     coolercontrol
 )
 
@@ -146,23 +154,23 @@ bare_metal_aur_packages=(
 #-------------------------------------------------------------------------------
 
 # Combine the Pacman package list
-install_pacman_packages=("${base_pacman_packages[@]}")
+install_pacman_packages=("${pacman_packages_base[@]}")
 if [ "$INSTALL_FOR_VM" = "false" ]; then
-    echo "-> Adding extra packages for bare-metal installation."
-    install_pacman_packages+=("${bare_metal_pacman_packages[@]}")
+    echo "-> Adding bare-metal packages to the Pacman list."
+    install_pacman_packages+=("${pacman_packages_bare_metal[@]}")
 fi
 
 # Combine the AUR package list
-install_aur_packages=("${base_aur_packages[@]}")
+install_aur_packages=("${aur_packages_base[@]}")
 if [ "$INSTALL_FOR_VM" = "false" ]; then
-    echo "-> Adding extra AUR packages for bare-metal installation."
-    install_aur_packages+=("${bare_metal_aur_packages[@]}")
+    echo "-> Adding bare-metal packages to the AUR list."
+    install_aur_packages+=("${aur_packages_bare_metal[@]}")
 fi
 
-log_header "Installing required Pacman packages..."
+log_header "Installing packages from official repositories (Pacman)..."
 sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
 
-log_header "Installing required AUR packages (with paru)..."
+log_header "Installing packages from the AUR (Paru)..."
 if command -v paru &> /dev/null; then
     paru -S --noconfirm --needed "${install_aur_packages[@]}"
 else
@@ -183,7 +191,7 @@ if pacman -Q blueman &>/dev/null; then
     sudo systemctl enable --now bluetooth.service
 fi
 
-if pacman -Q coolercontrol &>/dev/null; then
+if command -v coolercontrol &>/dev/null; then
     echo "   -> Starting coolercontrol service..."
     sudo systemctl enable --now coolercontrold.service
 fi
@@ -208,7 +216,6 @@ if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -f -c %T /)" = "btrfs" ]; then
     log_header "Configuring Snapper for Btrfs snapshots..."
     if [ ! -f /etc/snapper/configs/root ]; then
         echo "   -> Snapper config not found. Proceeding with setup..."
-        # ... (Your existing Snapper logic can remain here) ...
         sudo snapper -c root create-config /
     else
         echo "   -> Existing Snapper config found. No action needed."
@@ -224,6 +231,7 @@ fi
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
+    # ... (Your existing NVIDIA config logic can remain here) ...
     echo "   -> Regenerating initramfs and GRUB config..."
     sudo mkinitcpio -P
     sudo grub-mkconfig -o /boot/grub/grub.cfg
