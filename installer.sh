@@ -140,7 +140,7 @@ pacman_packages_bare_metal=(
 aur_packages_base=(
     zen-browser-bin
     obsidian
-    opencode
+    opencode-bin
     yaru-colors-gtk-theme
     bibata-cursor-theme
     wlogout
@@ -290,7 +290,7 @@ fi
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
     echo "   -> Changing default shell to Fish..."
-    chsh -s "$(which fish)"
+    sudo chsh -s "$(which fish)"
 else
     echo "   -> Default shell is already Fish."
 fi
