@@ -143,7 +143,6 @@ aur_packages_base=(
     opencode-bin
     yaru-colors-gtk-theme
     bibata-cursor-theme
-    wlogout
     neofetch
 )
 aur_packages_bare_metal=(
