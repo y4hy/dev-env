@@ -83,6 +83,15 @@ function gf
     git fetch
 end
 
+function pc
+    protonvpn connect
+end
+
+function pd
+    protonvpn disconnect
+end
+
+
 # =====================================================================
 # OTOMATİK BAŞLATMA MANTIĞI (HYPRLAND veya TMUX)
 # =====================================================================
