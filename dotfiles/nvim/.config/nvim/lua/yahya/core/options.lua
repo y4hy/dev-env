@@ -33,8 +33,8 @@ opt.clipboard:append("unnamedplus") -- use system clipboard as default register
 opt.splitright = true -- split vertical window to the right
 opt.splitbelow = true -- split horizontal window to the bottom
 
--- avante.nvim suggesetions
-opt.laststatus = 3
+-- disable statusline
+opt.laststatus = 0
 
 -- Set the GUI cursor style
 opt.guicursor = ""
@@ -43,8 +43,10 @@ opt.guicursor = ""
 opt.swapfile = false
 -- Disable backup file creation
 opt.backup = false
--- Set undo directory
-opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
+-- Set undo directory and create it if it doesn't exist
+local undodir = vim.fn.stdpath("data") .. "/undodir"
+vim.fn.mkdir(undodir, "p")
+opt.undodir = undodir
 -- Enable persistent undo
 opt.undofile = true
 

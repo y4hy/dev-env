@@ -21,7 +21,7 @@ return {
 
         vim.keymap.set("n", "<leader>fr", function()
             require("conform").format({ bufnr = 0 })
-        end)
+        end, { desc = "Format current buffer with configured formatter" })
 
 	end,
 }

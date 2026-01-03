@@ -39,14 +39,14 @@ return {
             local dap = require("dap")
             dap.set_log_level("DEBUG")
 
-            vim.keymap.set("n", "<F8>", dap.continue, { desc = "Debug: Continue" })
-            vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Debug: Step Over" })
-            vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Debug: Step Into" })
-            vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Debug: Step Out" })
-            vim.keymap.set("n", "<leader>b", dap.toggle_breakpoint, { desc = "Debug: Toggle Breakpoint" })
+            vim.keymap.set("n", "<F8>", dap.continue, { desc = "Debug: Start/Continue debugging session" })
+            vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Debug: Step over current line" })
+            vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Debug: Step into function call" })
+            vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Debug: Step out of current function" })
+            vim.keymap.set("n", "<leader>b", dap.toggle_breakpoint, { desc = "Debug: Toggle breakpoint on current line" })
             vim.keymap.set("n", "<leader>B", function()
                 dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
-            end, { desc = "Debug: Set Conditional Breakpoint" })
+            end, { desc = "Debug: Set conditional breakpoint with expression" })
         end
     },
 
@@ -98,17 +98,17 @@ return {
                 pcall(dapui.toggle, layout_config.index)
             end
 
-            vim.keymap.set("n", "<leader>dr", function() toggle_debug_ui("repl") end, { desc = "Debug: toggle repl ui" })
+            vim.keymap.set("n", "<leader>dr", function() toggle_debug_ui("repl") end, { desc = "Debug: Toggle REPL (read-eval-print-loop) UI" })
             vim.keymap.set("n", "<leader>ds", function() toggle_debug_ui("stacks") end,
-                { desc = "Debug: toggle stacks ui" })
+                { desc = "Debug: Toggle call stacks UI panel" })
             vim.keymap.set("n", "<leader>dw", function() toggle_debug_ui("watches") end,
-                { desc = "Debug: toggle watches ui" })
+                { desc = "Debug: Toggle watch expressions UI panel" })
             vim.keymap.set("n", "<leader>db", function() toggle_debug_ui("breakpoints") end,
-                { desc = "Debug: toggle breakpoints ui" })
+                { desc = "Debug: Toggle breakpoints list UI panel" })
            vim.keymap.set("n", "<leader>dS", function() toggle_debug_ui("scopes") end,
-                { desc = "Debug: toggle scopes ui" })
+                { desc = "Debug: Toggle scopes and variables UI panel" })
             vim.keymap.set("n", "<leader>dc", function() toggle_debug_ui("console") end,
-                { desc = "Debug: toggle console ui" })
+                { desc = "Debug: Toggle console output UI panel" })
 
             vim.api.nvim_create_autocmd("BufEnter", {
                 group = "DapGroup",
