@@ -103,7 +103,7 @@ end
 if test -z "$DISPLAY" -a (tty) = "/dev/tty1"
     # Eğer koşul doğruysa, mevcut shell işlemini Hyprland ile değiştir.
     # Bu komuttan sonra bu script'teki hiçbir şey çalışmaz.
-    exec Hyprland
+    exec start-hyprland
 end
 
 if status is-interactive; and not set -q TMUX
