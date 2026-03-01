@@ -8,6 +8,7 @@ opt.tabstop = 4
 opt.shiftwidth = 4
 opt.expandtab = true -- expand tab to spaces
 opt.autoindent = true -- copy indent from current line when starting new one
+opt.smartindent = true
 opt.softtabstop = 4
 
 opt.wrap = false

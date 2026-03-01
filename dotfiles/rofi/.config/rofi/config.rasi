@@ -1,4 +1,6 @@
 
-//@theme "/usr/share/rofi/themes/gruvbox-dark.rasi"
+//@theme "/home/y4hy/.config/rofi/themes/dark.rasi"
 
-@theme "/home/y4hy/.config/rofi/themes/monochrome.rasi"
+//@theme "/usr/share/rofi/themes/Monokai.rasi"
+
+@theme "/usr/share/rofi/themes/gruvbox-dark.rasi"

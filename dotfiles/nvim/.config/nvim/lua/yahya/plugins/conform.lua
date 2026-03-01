@@ -8,6 +8,7 @@ return {
 				cpp = { "clang-format" },
 				lua = { "stylua" },
 				go = { "gofmt" },
+                rust = { "rustfmt" },
 				javascript = { "prettier" },
 				typescript = { "prettier" },
 			},
@@ -19,8 +20,8 @@ return {
 		})
 
         vim.keymap.set("n", "<leader>fr", function()
-            require("conform").format({ bufnr = 0, lsp_format = "fallback" })
-        end, { desc = "Format current buffer (formatter or LSP fallback)" })
+            require("conform").format({ bufnr = 0 })
+        end, { desc = "Format current buffer with configured formatter" })
 
 	end,
 }
