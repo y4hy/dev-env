@@ -37,14 +37,14 @@ return {
         lazy = false,
         config = function()
             local dap = require("dap")
-            dap.set_log_level("DEBUG")
+            dap.set_log_level("INFO")
 
             vim.keymap.set("n", "<F8>", dap.continue, { desc = "Debug: Start/Continue debugging session" })
             vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Debug: Step over current line" })
             vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Debug: Step into function call" })
             vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Debug: Step out of current function" })
-            vim.keymap.set("n", "<leader>b", dap.toggle_breakpoint, { desc = "Debug: Toggle breakpoint on current line" })
-            vim.keymap.set("n", "<leader>B", function()
+            vim.keymap.set("n", "<leader>db", dap.toggle_breakpoint, { desc = "Debug: Toggle breakpoint on current line" })
+            vim.keymap.set("n", "<leader>dB", function()
                 dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
             end, { desc = "Debug: Set conditional breakpoint with expression" })
         end
@@ -103,7 +103,7 @@ return {
                 { desc = "Debug: Toggle call stacks UI panel" })
             vim.keymap.set("n", "<leader>dw", function() toggle_debug_ui("watches") end,
                 { desc = "Debug: Toggle watch expressions UI panel" })
-            vim.keymap.set("n", "<leader>db", function() toggle_debug_ui("breakpoints") end,
+            vim.keymap.set("n", "<leader>dp", function() toggle_debug_ui("breakpoints") end,
                 { desc = "Debug: Toggle breakpoints list UI panel" })
            vim.keymap.set("n", "<leader>dS", function() toggle_debug_ui("scopes") end,
                 { desc = "Debug: Toggle scopes and variables UI panel" })
@@ -152,6 +152,7 @@ return {
             require("mason-nvim-dap").setup({
                 ensure_installed = {
                     "delve",
+                    "codelldb",
                 },
                 automatic_installation = true,
                 handlers = {
