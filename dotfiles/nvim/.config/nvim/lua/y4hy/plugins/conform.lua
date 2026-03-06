@@ -16,7 +16,7 @@ return {
 			},
 		})
 
-		vim.keymap.set("n", "<leader>f", function()
+		vim.keymap.set("n", "<leader>fr", function()
 			require("conform").format({ bufnr = 0 })
 		end)
 	end,

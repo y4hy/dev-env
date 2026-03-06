@@ -48,6 +48,11 @@ return {
                                 diagnostics = { enable = true },
                             },
                         },
+                        workspace = {
+                            didChangeWatchedFiles = {
+                                dynamicRegistration = true,
+                            },
+                        },
                     })
                 end,
 

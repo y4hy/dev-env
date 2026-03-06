@@ -101,6 +101,9 @@ return {
 			"snacks_notif",
 			"snacks_win",
 			"fidget",
+			"cmp_docs",
+			"cmp_menu",
+			"trouble",
 		}
 
 		-- Auto-install parsers and enable highlighting on FileType

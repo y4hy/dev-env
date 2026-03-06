@@ -27,8 +27,14 @@ keymap.set("n", "<leader>q", "<cmd>tabnew<CR>", { desc = "Create a new empty tab
 keymap.set("n", "<leader>c", "<cmd>tabclose<CR>", { desc = "Close the current tab" })
 keymap.set({ "n", "i" }, "<M-[>", "<cmd>tabp<CR>", { desc = "Switch to previous tab" })
 keymap.set({ "n", "i" }, "<M-]>", "<cmd>tabn<CR>", { desc = "Switch to next tab" })
-keymap.set("n", "<leader><Tab>", "<cmd>tablast<CR>", { desc = "Go to the last tab" })
 keymap.set("n", "<leader>o", ":tabnew ", { desc = "Open a file in a new tab (type path)" })
+
+for i = 1, 10 do
+    local key = i == 10 and "0" or tostring(i)
+    keymap.set("n", "<leader>" .. key, i .. "gt", {
+        desc = "Switch to tab " .. i
+    })
+end
 
 -- buffer management
 keymap.set("v", "<C-c>", '"+y', { desc = "Copy visual selection to system clipboard" })
