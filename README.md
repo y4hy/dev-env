@@ -30,10 +30,11 @@ Tip: Review `installer.sh` before running to understand exactly what it does on 
 
 ## Requirements
 
+- Arch Linux (or an Arch-based distribution with `pacman`)
 - A POSIX-compatible shell (bash/sh)
 - git
 - sudo privileges (for system-level installs)
-- Linux or WSL environment (other platforms may work but are untested)
+- Network connectivity for package installation
 
 ## Usage notes
 
