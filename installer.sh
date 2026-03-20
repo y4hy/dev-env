@@ -241,21 +241,32 @@ fi
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
-    
-    # Backup and apply custom GRUB config
-    if [ -f "$SCRIPT_DIR/nvidia/grub" ]; then
-        echo "   -> Applying custom GRUB configuration..."
-        sudo cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d%H%M%S)
-        sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
+
+    timestamp=$(date +%Y%m%d%H%M%S)
+
+    # Safely patch existing GRUB config instead of replacing the whole file
+    if [ -f /etc/default/grub ]; then
+        echo "   -> Patching /etc/default/grub with NVIDIA kernel parameters..."
+        sudo cp /etc/default/grub /etc/default/grub.backup.$timestamp
+        if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*nvidia-drm\.modeset=1' /etc/default/grub; then
+            sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ nvidia-drm.modeset=1"/' /etc/default/grub
+        fi
+        if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*modprobe\.blacklist=nouveau' /etc/default/grub; then
+            sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ modprobe.blacklist=nouveau"/' /etc/default/grub
+        fi
     fi
-    
-    # Backup and apply custom mkinitcpio config
-    if [ -f "$SCRIPT_DIR/nvidia/mkinitcpio" ]; then
-        echo "   -> Applying custom mkinitcpio configuration..."
-        sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.backup.$(date +%Y%m%d%H%M%S)
-        sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
+
+    # Safely patch existing mkinitcpio config instead of replacing the whole file
+    if [ -f /etc/mkinitcpio.conf ]; then
+        echo "   -> Patching /etc/mkinitcpio.conf with NVIDIA modules..."
+        sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.backup.$timestamp
+        for module in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
+            if ! grep -Eq "^MODULES=.*\\b${module}\\b" /etc/mkinitcpio.conf; then
+                sudo sed -i "/^MODULES=/ s/)/ ${module})/" /etc/mkinitcpio.conf
+            fi
+        done
     fi
-    
+
     echo "   -> Regenerating initramfs and GRUB config..."
     sudo mkinitcpio -P
     sudo grub-mkconfig -o /boot/grub/grub.cfg
@@ -267,19 +278,26 @@ fi
 echo "   -> Setting up PAM for GNOME Keyring auto-unlock..."
 PAM_LOGIN="/etc/pam.d/login"
 
-# Apply the pre-configured PAM login file if it exists
-if [ -f "$SCRIPT_DIR/keyring/login" ]; then
-    echo "   -> Applying custom PAM login configuration for keyring..."
-    sudo cp "$PAM_LOGIN" "$PAM_LOGIN.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
-    sudo cp "$SCRIPT_DIR/keyring/login" "$PAM_LOGIN"
-else
-    # Fallback: manually add keyring lines if not already present
-    if ! grep -q "pam_gnome_keyring.so" "$PAM_LOGIN" 2>/dev/null; then
-        echo "   -> Adding GNOME Keyring PAM entries..."
-        echo "auth       optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_LOGIN" > /dev/null
-        echo "session    optional     pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
+if [ -f "$PAM_LOGIN" ]; then
+    timestamp=$(date +%Y%m%d%H%M%S)
+    sudo cp "$PAM_LOGIN" "$PAM_LOGIN.backup.$timestamp" 2>/dev/null || true
+fi
+
+if ! grep -q "^auth[[:space:]]\\+optional[[:space:]]\\+pam_gnome_keyring\\.so" "$PAM_LOGIN" 2>/dev/null; then
+    echo "   -> Adding GNOME Keyring auth PAM entry..."
+    if grep -q "^auth[[:space:]]\\+include[[:space:]]\\+system-local-login" "$PAM_LOGIN" 2>/dev/null; then
+        sudo sed -i '/^auth[[:space:]]\+include[[:space:]]\+system-local-login/a auth        optional    pam_gnome_keyring.so' "$PAM_LOGIN"
     else
-        echo "   -> PAM already configured for GNOME Keyring."
+        echo "auth        optional    pam_gnome_keyring.so" | sudo tee -a "$PAM_LOGIN" > /dev/null
+    fi
+fi
+
+if ! grep -q "^session[[:space:]]\\+optional[[:space:]]\\+pam_gnome_keyring\\.so[[:space:]]\\+auto_start" "$PAM_LOGIN" 2>/dev/null; then
+    echo "   -> Adding GNOME Keyring session PAM entry..."
+    if grep -q "^session[[:space:]]\\+include[[:space:]]\\+system-local-login" "$PAM_LOGIN" 2>/dev/null; then
+        sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session     optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
+    else
+        echo "session     optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
     fi
 fi
 
