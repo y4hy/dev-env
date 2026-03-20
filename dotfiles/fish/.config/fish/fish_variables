@@ -2,5 +2,3 @@
 # VERSION: 3.0
 SETUVAR --export SSH_AGENT_PID:1107
 SETUVAR __fish_initialized:4300
-SETUVAR fish_most_recent_dir:/home/y4hy/dev/dev\x2denv
-SETUVAR --export fish_user_paths:/home/y4hy/\x2ecargo/bin\x1e/home/y4hy/tools\x1e/home/y4hy/go/bin\x1e/home/y4hy/\x2edotnet/tools

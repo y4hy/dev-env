@@ -221,7 +221,7 @@ if pacman -Q libvirt &>/dev/null; then
 fi
 
 # --- Configure Snapper for Btrfs (BARE-METAL ONLY) ---
-if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -f -c %T /)" = "btrfs" ]; then
+if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -c %T /)" = "btrfs" ]; then
     log_header "Configuring Snapper for Btrfs snapshots..."
     if [ ! -f /etc/snapper/configs/root ]; then
         echo "   -> Snapper config not found. Proceeding with setup..."
@@ -284,7 +284,9 @@ fi
 
 # --- Configure Git to use libsecret ---
 echo "   -> Configuring Git credential helper..."
-git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
+if command -v git-credential-libsecret &>/dev/null; then
+    git config --global credential.helper libsecret
+fi
 
 
 #-------------------------------------------------------------------------------

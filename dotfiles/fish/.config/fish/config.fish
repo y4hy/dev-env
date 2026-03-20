@@ -32,8 +32,8 @@ end
 # Use the modern 'fish_add_path' to safely add directories to your PATH.
 # This function prevents duplicate entries.
 
-fish_add_path /home/y4hy/go/bin
-fish_add_path /home/y4hy/tools
+fish_add_path $HOME/go/bin
+fish_add_path $HOME/tools
 fish_add_path ~/.local/bin
 fish_add_path ~/.cargo/bin
 
