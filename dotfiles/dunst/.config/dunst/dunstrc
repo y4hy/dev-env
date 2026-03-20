@@ -9,10 +9,15 @@
     monitor = 0
     # Follow mouse pointer to the active monitor.
     follow = mouse
-    # The geometry of the notification window.
-    # format: "{width}x{height}[+/-]{x}[+/-]{y}"
-    # This sets a 300px wide window at the top-right corner.
-    geometry = "300x5-30+50"
+    
+    # Modern geometry settings (replaces deprecated 'geometry')
+    width = 300
+    height = (0, 300)
+    origin = top-right
+    offset = 30x50
+    
+    # Maximum number of notifications to show
+    notification_limit = 5
 
     ### Styling ###
     # A simple but effective format.
@@ -28,17 +33,20 @@
     font = JetBrainsMono Nerd Font 10
 
     # Whether to allow markup (for bold, italics, etc.)
-    allow_markup = yes
+    markup = full
 
-    # Shrink the window if the text is smaller than the width.
-    shrink = yes
     # Alignment of text. `left`, `center`, or `right`.
     alignment = left
     # Vertical alignment of text. `top`, `center`, `bottom`.
     vertical_alignment = center
 
     # Path to default icons.
-    icon_path = /usr/share/icons/Adwaita/16x16/legacy/:/usr/share/icons/Papyrus/16x16/apps/
+    icon_path = /usr/share/icons/Papirus-Dark/16x16/status/:/usr/share/icons/Papirus-Dark/16x16/apps/:/usr/share/icons/Adwaita/16x16/legacy/
+    
+    # Icon size
+    icon_position = left
+    min_icon_size = 32
+    max_icon_size = 64
 
     ### Behavior ###
     # Don't show notifications older than 60 seconds.
@@ -50,21 +58,29 @@
     # Stack notifications on top of each other.
     stack_duplicates = true
     # Hide duplicate notifications.
-    hide_duplicate_count = true
-
-[frame]
-    # The frame around the notification window.
-    width = 2
-    # The color of the frame, using the Adwaita accent blue.
-    color = "#3584e4"
+    hide_duplicate_count = false
+    
+    # Frame settings
+    frame_width = 2
+    frame_color = "#3584e4"
+    
+    # Corner radius for rounded notifications
+    corner_radius = 8
+    
+    # Progress bar settings
+    progress_bar = true
+    progress_bar_height = 10
+    progress_bar_frame_width = 1
+    progress_bar_min_width = 150
+    progress_bar_max_width = 300
 
 # --- THEME AND COLORS (Adwaita Dark Palette) ---
 # This palette uses the official colors from GNOME's Adwaita Dark theme.
 
 [urgency_low]
     # For low-urgency notifications.
-    background = "#242424"  # Adwaita dark grey
-    foreground = "#eeeeec"  # Adwaita off-white text
+    background = "#242424"
+    foreground = "#eeeeec"
     timeout = 5
 
 [urgency_normal]
@@ -75,7 +91,7 @@
 
 [urgency_critical]
     # For critical notifications.
-    background = "#c01c28"  # Adwaita error red
-    foreground = "#ffffff"  # High-contrast white text
+    background = "#c01c28"
+    foreground = "#ffffff"
     frame_color = "#c01c28"
-    timeout = 0 # Stays until you dismiss it
+    timeout = 0

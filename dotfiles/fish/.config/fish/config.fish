@@ -42,10 +42,10 @@ fish_add_path ~/.cargo/bin
 # =====================================================================
 # Use 'set -x' to export variables for other programs to access.
 
-set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/gcr/ssh"
-set -x SSH_ASKPASS /usr/bin/lxqt-openssh-askpass
+# Use GNOME Keyring's SSH agent
+set -x SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/keyring/ssh"
+
 set -x BROWSER 'zen-browser'
-set -e SSH_ASKPASS
 
 # =====================================================================
 # ALIASES

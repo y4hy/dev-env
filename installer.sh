@@ -115,7 +115,9 @@ pacman_packages_base=(
     # Networking
     networkmanager
     # Media Tools
-    vlc
+    vlc playerctl brightnessctl
+    # Clipboard & Notifications
+    cliphist
     # Audio - PipeWire
     pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
     # Fonts
@@ -127,6 +129,8 @@ pacman_packages_base=(
     gnome-keyring libsecret seahorse
 )
 pacman_packages_bare_metal=(
+    # CPU Microcode
+    intel-ucode amd-ucode
     # Graphics Drivers
     nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
     # Bluetooth
@@ -145,6 +149,9 @@ aur_packages_base=(
     yaru-colors-gtk-theme
     bibata-cursor-theme
     neofetch
+    wlogout
+    rofi-bluetooth
+    ttf-0xproto-nerd
 )
 aur_packages_bare_metal=(
     # Hardware specific tools
@@ -233,7 +240,21 @@ fi
 # --- Configure GRUB and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
-    # ... (Your existing NVIDIA config logic can remain here) ...
+    
+    # Backup and apply custom GRUB config
+    if [ -f "$SCRIPT_DIR/nvidia/grub" ]; then
+        echo "   -> Applying custom GRUB configuration..."
+        sudo cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d%H%M%S)
+        sudo cp "$SCRIPT_DIR/nvidia/grub" /etc/default/grub
+    fi
+    
+    # Backup and apply custom mkinitcpio config
+    if [ -f "$SCRIPT_DIR/nvidia/mkinitcpio" ]; then
+        echo "   -> Applying custom mkinitcpio configuration..."
+        sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.backup.$(date +%Y%m%d%H%M%S)
+        sudo cp "$SCRIPT_DIR/nvidia/mkinitcpio" /etc/mkinitcpio.conf
+    fi
+    
     echo "   -> Regenerating initramfs and GRUB config..."
     sudo mkinitcpio -P
     sudo grub-mkconfig -o /boot/grub/grub.cfg
@@ -244,17 +265,21 @@ fi
 # --- Configure PAM for GNOME Keyring ---
 echo "   -> Setting up PAM for GNOME Keyring auto-unlock..."
 PAM_LOGIN="/etc/pam.d/login"
-PAM_PASSWD="/etc/pam.d/passwd"
 
-# Add keyring unlock to login
-if ! grep -q "pam_gnome_keyring.so" "$PAM_LOGIN" 2>/dev/null; then
-    echo "auth       optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_LOGIN" > /dev/null
-    echo "session    optional     pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
-fi
-
-# Add keyring password sync to passwd
-if ! grep -q "pam_gnome_keyring.so" "$PAM_PASSWD" 2>/dev/null; then
-    echo "password   optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_PASSWD" > /dev/null
+# Apply the pre-configured PAM login file if it exists
+if [ -f "$SCRIPT_DIR/keyring/login" ]; then
+    echo "   -> Applying custom PAM login configuration for keyring..."
+    sudo cp "$PAM_LOGIN" "$PAM_LOGIN.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+    sudo cp "$SCRIPT_DIR/keyring/login" "$PAM_LOGIN"
+else
+    # Fallback: manually add keyring lines if not already present
+    if ! grep -q "pam_gnome_keyring.so" "$PAM_LOGIN" 2>/dev/null; then
+        echo "   -> Adding GNOME Keyring PAM entries..."
+        echo "auth       optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_LOGIN" > /dev/null
+        echo "session    optional     pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
+    else
+        echo "   -> PAM already configured for GNOME Keyring."
+    fi
 fi
 
 # --- Configure Git to use libsecret ---
