@@ -249,10 +249,22 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
         echo "   -> Patching /etc/default/grub with NVIDIA kernel parameters..."
         sudo cp /etc/default/grub /etc/default/grub.backup.$timestamp
         if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*nvidia-drm\.modeset=1' /etc/default/grub; then
-            sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ nvidia-drm.modeset=1"/' /etc/default/grub
+            if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=".*"$' /etc/default/grub; then
+                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ nvidia-drm.modeset=1"/' /etc/default/grub
+            elif grep -Eq "^GRUB_CMDLINE_LINUX_DEFAULT='.*'$" /etc/default/grub; then
+                sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/'$/ nvidia-drm.modeset=1'/" /etc/default/grub
+            else
+                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/$/ nvidia-drm.modeset=1/' /etc/default/grub
+            fi
         fi
         if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*modprobe\.blacklist=nouveau' /etc/default/grub; then
-            sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ modprobe.blacklist=nouveau"/' /etc/default/grub
+            if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=".*"$' /etc/default/grub; then
+                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ modprobe.blacklist=nouveau"/' /etc/default/grub
+            elif grep -Eq "^GRUB_CMDLINE_LINUX_DEFAULT='.*'$" /etc/default/grub; then
+                sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/'$/ modprobe.blacklist=nouveau'/" /etc/default/grub
+            else
+                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/$/ modprobe.blacklist=nouveau/' /etc/default/grub
+            fi
         fi
     fi
 
@@ -260,11 +272,15 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     if [ -f /etc/mkinitcpio.conf ]; then
         echo "   -> Patching /etc/mkinitcpio.conf with NVIDIA modules..."
         sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.backup.$timestamp
-        for module in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
-            if ! grep -Eq "^MODULES=.*\\b${module}\\b" /etc/mkinitcpio.conf; then
-                sudo sed -i "/^MODULES=/ s/)/ ${module})/" /etc/mkinitcpio.conf
-            fi
-        done
+        if grep -Eq '^MODULES=\(.*\)$' /etc/mkinitcpio.conf; then
+            for module in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
+                if ! grep -Eq "^MODULES=.*\\b${module}\\b" /etc/mkinitcpio.conf; then
+                    sudo sed -i "/^MODULES=/ s/)/ ${module})/" /etc/mkinitcpio.conf
+                fi
+            done
+        else
+            echo "   -> WARNING: Skipping mkinitcpio MODULES patch (unexpected MODULES format)."
+        fi
     fi
 
     echo "   -> Regenerating initramfs and GRUB config..."
