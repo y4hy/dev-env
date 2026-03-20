@@ -221,6 +221,7 @@ if pacman -Q libvirt &>/dev/null; then
 fi
 
 # --- Configure Snapper for Btrfs (BARE-METAL ONLY) ---
+# Arch uses GNU coreutils `stat`, so `-c` is expected here.
 if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -c %T /)" = "btrfs" ]; then
     log_header "Configuring Snapper for Btrfs snapshots..."
     if [ ! -f /etc/snapper/configs/root ]; then
@@ -284,8 +285,10 @@ fi
 
 # --- Configure Git to use libsecret ---
 echo "   -> Configuring Git credential helper..."
-if command -v git-credential-libsecret &>/dev/null; then
-    git config --global credential.helper libsecret
+if credential_helper_path="$(command -v git-credential-libsecret)"; then
+    git config --global credential.helper "$credential_helper_path"
+else
+    echo "   -> git-credential-libsecret not found. Skipping Git credential helper setup."
 fi
 
 
