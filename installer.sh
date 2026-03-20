@@ -108,7 +108,7 @@ fi
 pacman_packages_base=(
     # Desktop Environment & Core Apps
     hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
-    imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent
+    imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
     # File Management & System Utilities
     tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
@@ -120,6 +120,7 @@ pacman_packages_base=(
     pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
     # Fonts
     ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji
+    ttf-nerd-fonts-symbols
     # Development Tools
     nodejs npm docker docker-compose python-pip
     # Security & Keyring
@@ -241,7 +242,20 @@ else
 fi
 
 # --- Configure PAM for GNOME Keyring ---
-echo "   -> Setting up PAM for Keyring..."
+echo "   -> Setting up PAM for GNOME Keyring auto-unlock..."
+PAM_LOGIN="/etc/pam.d/login"
+PAM_PASSWD="/etc/pam.d/passwd"
+
+# Add keyring unlock to login
+if ! grep -q "pam_gnome_keyring.so" "$PAM_LOGIN" 2>/dev/null; then
+    echo "auth       optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_LOGIN" > /dev/null
+    echo "session    optional     pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
+fi
+
+# Add keyring password sync to passwd
+if ! grep -q "pam_gnome_keyring.so" "$PAM_PASSWD" 2>/dev/null; then
+    echo "password   optional     pam_gnome_keyring.so" | sudo tee -a "$PAM_PASSWD" > /dev/null
+fi
 
 # --- Configure Git to use libsecret ---
 echo "   -> Configuring Git credential helper..."
@@ -289,7 +303,7 @@ fi
 # --- Change Default Shell to Fish ---
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
     echo "   -> Changing default shell to Fish..."
-    sudo chsh -s "$(which fish)"
+    sudo chsh -s "$(which fish)" "$USER"
 else
     echo "   -> Default shell is already Fish."
 fi
