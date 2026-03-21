@@ -130,7 +130,7 @@ pacman_packages_base=(
 )
 pacman_packages_bare_metal=(
     # CPU Microcode
-    intel-ucode amd-ucode
+    intel-ucode
     # Graphics Drivers
     nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
     # Bluetooth
@@ -138,7 +138,7 @@ pacman_packages_bare_metal=(
     # Virtualization
     qemu-desktop virt-manager libvirt dnsmasq vde2 bridge-utils edk2-ovmf
     # Btrfs Tools
-    snapper snap-pac grub-btrfs
+    snapper snap-pac limine efibootmgr
 )
 
 # --- Arch User Repository (AUR / Paru) ---
@@ -146,16 +146,19 @@ aur_packages_base=(
     zen-browser-bin
     obsidian
     opencode-bin
-    yaru-colors-gtk-theme
-    bibata-cursor-theme
+    yaru-colors-gtk-theme-bin
+    bibata-cursor-theme-bin
     neofetch
-    wlogout
-    rofi-bluetooth
+    rofi-bluetooth-git
     ttf-0xproto-nerd
 )
 aur_packages_bare_metal=(
     # Hardware specific tools
     coolercontrol
+    # Limine helpers
+    limine-entry-tool
+    limine-mkinitcpio-hook
+    limine-snapper-sync
 )
 
 #-------------------------------------------------------------------------------
@@ -233,39 +236,59 @@ if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -c %T /)" = "btrfs" ]; then
     echo "   -> Enabling Snapper services..."
     sudo systemctl enable --now snapper-timeline.timer
     sudo systemctl enable --now snapper-cleanup.timer
-    sudo systemctl enable --now grub-btrfsd.service
+    if command -v limine-snapper-sync &>/dev/null; then
+        echo "   -> Enabling Limine Snapper sync service..."
+        sudo systemctl enable --now limine-snapper-sync.service
+    else
+        echo "   -> limine-snapper-sync not found. Skipping snapshot boot-entry sync service."
+    fi
 else
     echo "-> Skipping Snapper setup (Not a bare-metal Btrfs system)."
 fi
 
-# --- Configure GRUB and mkinitcpio for NVIDIA ---
+# --- Deploy and refresh Limine bootloader entries ---
+if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q limine &>/dev/null; then
+    echo "   -> Deploying and refreshing Limine..."
+
+    if command -v limine-install &>/dev/null; then
+        if [ -d /sys/firmware/efi ]; then
+            sudo limine-install --fallback || sudo limine-install
+        else
+            echo "   -> BIOS mode detected. limine-install may need manual target disk selection."
+            echo "   -> Skipping automatic BIOS deployment in this script to avoid writing to the wrong disk."
+        fi
+    else
+        echo "   -> limine-install not found. Skipping Limine deployment step."
+    fi
+
+    if command -v limine-update &>/dev/null; then
+        sudo limine-update
+    else
+        echo "   -> limine-update not found. Ensure limine.conf is present and updated manually."
+    fi
+else
+    echo "   -> Limine package not found or VM mode enabled. Skipping Limine deployment."
+fi
+
+# --- Configure Limine and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
-    echo "   -> Configuring GRUB and mkinitcpio for NVIDIA..."
+    echo "   -> Configuring Limine kernel parameters and mkinitcpio for NVIDIA..."
 
     timestamp=$(date +%Y%m%d%H%M%S)
 
-    # Safely patch existing GRUB config instead of replacing the whole file
-    if [ -f /etc/default/grub ]; then
-        echo "   -> Patching /etc/default/grub with NVIDIA kernel parameters..."
-        sudo cp /etc/default/grub /etc/default/grub.backup.$timestamp
-        if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*nvidia-drm\.modeset=1' /etc/default/grub; then
-            if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=".*"$' /etc/default/grub; then
-                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ nvidia-drm.modeset=1"/' /etc/default/grub
-            elif grep -Eq "^GRUB_CMDLINE_LINUX_DEFAULT='.*'$" /etc/default/grub; then
-                sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/'$/ nvidia-drm.modeset=1'/" /etc/default/grub
-            else
-                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/$/ nvidia-drm.modeset=1/' /etc/default/grub
-            fi
+    # Limine-oriented kernel cmdline configuration.
+    if [ -f /etc/kernel/cmdline ]; then
+        echo "   -> Patching /etc/kernel/cmdline with NVIDIA kernel parameters..."
+        sudo cp /etc/kernel/cmdline /etc/kernel/cmdline.backup.$timestamp
+        if ! grep -Eq '(^|[[:space:]])nvidia-drm\.modeset=1($|[[:space:]])' /etc/kernel/cmdline; then
+            sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
         fi
-        if ! grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=.*modprobe\.blacklist=nouveau' /etc/default/grub; then
-            if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=".*"$' /etc/default/grub; then
-                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ modprobe.blacklist=nouveau"/' /etc/default/grub
-            elif grep -Eq "^GRUB_CMDLINE_LINUX_DEFAULT='.*'$" /etc/default/grub; then
-                sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/'$/ modprobe.blacklist=nouveau'/" /etc/default/grub
-            else
-                sudo sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/$/ modprobe.blacklist=nouveau/' /etc/default/grub
-            fi
+        if ! grep -Eq '(^|[[:space:]])modprobe\.blacklist=nouveau($|[[:space:]])' /etc/kernel/cmdline; then
+            sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
         fi
+    else
+        echo "   -> /etc/kernel/cmdline not found. Skipping kernel cmdline patch."
+        echo "   -> If you use static limine.conf entries, add NVIDIA params to each entry's cmdline manually."
     fi
 
     # Safely patch existing mkinitcpio config instead of replacing the whole file
@@ -283,11 +306,20 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
         fi
     fi
 
-    echo "   -> Regenerating initramfs and GRUB config..."
-    sudo mkinitcpio -P
-    sudo grub-mkconfig -o /boot/grub/grub.cfg
+    echo "   -> Regenerating initramfs and refreshing Limine entries..."
+    if command -v limine-mkinitcpio &>/dev/null; then
+        sudo limine-mkinitcpio
+    else
+        sudo mkinitcpio -P
+    fi
+
+    if command -v limine-update &>/dev/null; then
+        sudo limine-update
+    else
+        echo "   -> limine-update not found. Ensure limine.conf is updated for current kernels."
+    fi
 else
-    echo "   -> Skipping NVIDIA-specific GRUB and mkinitcpio configuration."
+    echo "   -> Skipping NVIDIA-specific Limine and mkinitcpio configuration."
 fi
 
 # --- Configure PAM for GNOME Keyring ---
