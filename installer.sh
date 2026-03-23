@@ -70,7 +70,7 @@ esac
 #-------------------------------------------------------------------------------
 log_header "Updating system and installing core packages..."
 sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm --needed git base-devel linux linux-lts linux-headers linux-lts-headers mkinitcpio openssh systemd-resolvconf
+sudo pacman -S --noconfirm --needed git base-devel linux linux-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
 # AUR HELPER INSTALLATION (paru)
@@ -109,6 +109,7 @@ pacman_packages_base=(
     # Desktop Environment & Core Apps
     hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
+    zathura
     # File Management & System Utilities
     tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
@@ -136,7 +137,7 @@ pacman_packages_bare_metal=(
     # Bluetooth
     bluez bluez-utils blueman
     # Virtualization
-    qemu-desktop virt-manager libvirt dnsmasq vde2 bridge-utils edk2-ovmf
+    qemu-desktop virt-manager libvirt dnsmasq vde2 edk2-ovmf
     # Btrfs Tools
     snapper snap-pac limine efibootmgr
 )
@@ -146,8 +147,8 @@ aur_packages_base=(
     zen-browser-bin
     obsidian
     opencode-bin
-    yaru-colors-gtk-theme-bin
-    bibata-cursor-theme-bin
+    yaru-colors-gtk-theme
+    bibata-cursor-theme
     neofetch
     rofi-bluetooth-git
     ttf-0xproto-nerd
@@ -157,8 +158,9 @@ aur_packages_bare_metal=(
     coolercontrol
     # Limine helpers
     limine-entry-tool
-    limine-mkinitcpio-hook
     limine-snapper-sync
+    # other
+    bridge-utils
 )
 
 #-------------------------------------------------------------------------------
@@ -387,6 +389,7 @@ echo "   -> Setting GTK theme, icons, and cursor..."
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Ice'
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 
 # --- Tmux Plugin Manager (TPM) Setup ---
 echo "   -> Setting up Tmux Plugin Manager (TPM) and plugins..."
