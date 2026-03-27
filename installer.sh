@@ -335,11 +335,9 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 #-------------------------------------------------------------------------------
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
-log_header "Installing Rust via rustup..."
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-export PATH="$HOME/.cargo/bin:$PATH"
+log_header "Installing Rust tools..."
 rustup component add rust-analyzer
-echo "   -> Rust has been installed successfully."
+echo "   -> Rust has been configured successfully."
 
 
 #-------------------------------------------------------------------------------
@@ -360,7 +358,6 @@ rm -rf ~/.config/fish ~/.config/hypr
 echo "   -> Setting GTK theme, icons, and cursor..."
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
-gsettings set org.gnome.desktop.interface cursor-theme 'Bibata-Modern-Ice'
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 
 # --- Tmux Plugin Manager (TPM) Setup ---
