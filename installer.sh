@@ -131,7 +131,7 @@ task() {
 # ── Banner ────────────────────────────────────────────────────────────────────────
 clear
 echo ""
-echo -e "  ${B}${WHITE}Arch Linux — Hyprland setup${R}"
+echo -e "  ${B}${WHITE}We are here to alleviate your suffer, but not thoroughly${R}"
 echo -e "  ${GRAY}$_TOTAL_PHASES phases  ·  output is suppressed, errors will be shown${R}"
 echo ""
 
