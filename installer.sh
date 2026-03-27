@@ -70,7 +70,9 @@ esac
 #-------------------------------------------------------------------------------
 log_header "Updating system and installing core packages..."
 yes "" | sudo pacman -Syu --noconfirm
-yes "" | sudo pacman -S --noconfirm --needed git base-devel linux linux-headers mkinitcpio openssh systemd-resolvconf
+
+# FIXED: Added linux-lts and linux-lts-headers so dkms can build modules for both kernels
+yes "" | sudo pacman -S --noconfirm --needed git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
 # AUR HELPER INSTALLATION (paru)
@@ -272,10 +274,13 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     if [ -f /etc/mkinitcpio.conf ]; then
         echo "   -> Patching /etc/mkinitcpio.conf with NVIDIA modules..."
         sudo cp /etc/mkinitcpio.conf /etc/mkinitcpio.conf.backup.$timestamp
-        if grep -Eq '^MODULES=\(.*\)$' /etc/mkinitcpio.conf; then
+        
+        if grep -q '^MODULES=' /etc/mkinitcpio.conf; then
             for module in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
                 if ! grep -Eq "^MODULES=.*\\b${module}\\b" /etc/mkinitcpio.conf; then
-                    sudo sed -i "/^MODULES=/ s/)/ ${module})/" /etc/mkinitcpio.conf
+                    # Replace MODULES=(...) with MODULES=(... new_module) safely
+                    sudo sed -i "s/^MODULES=(\(.*\))/MODULES=(\1 ${module})/" /etc/mkinitcpio.conf
+                    sudo sed -i 's/^MODULES=( /MODULES=(/' /etc/mkinitcpio.conf
                 fi
             done
         else
@@ -320,7 +325,7 @@ fi
 if ! grep -q "^session[[:space:]]\\+optional[[:space:]]\\+pam_gnome_keyring\\.so[[:space:]]\\+auto_start" "$PAM_LOGIN" 2>/dev/null; then
     echo "   -> Adding GNOME Keyring session PAM entry..."
     if grep -q "^session[[:space:]]\\+include[[:space:]]\\+system-local-login" "$PAM_LOGIN" 2>/dev/null; then
-        sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session     optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
+        sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session      optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
     else
         echo "session     optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
     fi
@@ -335,7 +340,18 @@ git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 # PROGRAMMING LANGUAGE SDKs
 #-------------------------------------------------------------------------------
 log_header "Installing Rust tools..."
+
+if ! command -v rustup &> /dev/null; then
+    echo "   -> Installing rustup..."
+    yes "" | sudo pacman -S --noconfirm --needed rustup
+fi
+
+echo "   -> Initializing the stable Rust toolchain..."
+rustup default stable
+
+echo "   -> Adding rust-analyzer..."
 rustup component add rust-analyzer
+
 echo "   -> Rust has been configured successfully."
 
 
