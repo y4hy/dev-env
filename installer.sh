@@ -174,7 +174,7 @@ esac
 
 # ── Package lists ─────────────────────────────────────────────────────────────────
 pacman_packages_base=(
-    hyprland hyprshot neovim kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
+    hyprland hyprshot neovim tree-sitter tree-sitter-cli kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
     zathura tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
