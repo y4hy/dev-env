@@ -401,19 +401,116 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     if [[ "$(stat -c %T /)" == "btrfs" ]]; then
         section "Btrfs snapshots — Snapper" "bare-metal only"
 
-        if [[ ! -f /etc/snapper/configs/root ]]; then
-            task "Creating Snapper root config ${DIM}(initializes Btrfs layout)${R}" sudo snapper -c root create-config /
+        # ── Discover mounted Btrfs subvolumes ─────────────────────────────────
+        step "Detecting mounted Btrfs subvolumes..."
+        declare -A _subvol_map  # mountpoint → subvolume name
+        while IFS= read -r line; do
+            local_mp=$(echo "$line" | awk '{print $1}')
+            local_sv=$(echo "$line" | awk '{print $2}')
+            # skip the top-level subvol (id 5 / path /)
+            [[ "$local_sv" == "/" ]] && continue
+            _subvol_map["$local_mp"]="$local_sv"
+        done < <(findmnt -n -r -t btrfs -o TARGET,SOURCE \
+                 | sed 's|.*\[||;s|\]||' \
+                 | awk '{mp=$1; sv=$2; if (sv != "") print mp, sv}')
+
+        if [[ ${#_subvol_map[@]} -eq 0 ]]; then
+            warn "Subvolume detection" "No named Btrfs subvolumes found. Falling back to root-only config."
+            _subvol_map["/"]="@"
         else
-            ok "Snapper config already exists"
+            echo -e "  ${GRAY}Found ${#_subvol_map[@]} subvolume(s):${R}"
+            for _mp in "${!_subvol_map[@]}"; do
+                echo -e "    ${BLUE}·${R}  ${_subvol_map[$_mp]}  ${GRAY}→  $_mp${R}"
+            done
+            echo ""
         fi
 
-        task "Enabling snapshot timers ${DIM}(automatic background snapshots)${R}" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+        # ── Subvolumes that should NOT get their own snapper config ───────────
+        # Snapshots dirs, efi, boot, swap are not useful to snapshot
+        _skip_patterns=('*.snapshots*' '*/efi*' '*/boot*' '*swap*' '*tmp*')
 
+        _snapper_configs=()
+
+        for _mp in "${!_subvol_map[@]}"; do
+            _sv="${_subvol_map[$_mp]}"
+            _skip=false
+            for _pat in "${_skip_patterns[@]}"; do
+                # shellcheck disable=SC2254
+                case "$_mp" in $_pat) _skip=true; break;; esac
+            done
+            [[ "$_skip" == "true" ]] && { skip "Skipping snapper config for $_sv ($_mp)"; continue; }
+
+            # Derive a short config name from the subvolume (strip leading @)
+            _cfg_name="${_sv##*/}"           # last path component
+            _cfg_name="${_cfg_name#@}"       # strip leading @
+            _cfg_name="${_cfg_name:-root}"   # fallback to "root" for bare "@"
+            _cfg_name="${_cfg_name//_/-}"    # underscores → hyphens
+
+            if [[ ! -f "/etc/snapper/configs/$_cfg_name" ]]; then
+                task "Creating snapper config '$_cfg_name' ${DIM}($_sv → $_mp)${R}" \
+                    sudo snapper -c "$_cfg_name" create-config "$_mp"
+            else
+                ok "Snapper config '$_cfg_name' already exists"
+            fi
+
+            # ── Per-config timeline & cleanup tuning ──────────────────────────
+            # root/@  gets generous limits; secondary subvols get tighter ones
+            if [[ "$_cfg_name" == "root" ]] || [[ "$_mp" == "/" ]]; then
+                _hourly=5; _daily=7; _weekly=2; _monthly=2; _yearly=0
+            else
+                _hourly=3; _daily=5; _weekly=1; _monthly=1; _yearly=0
+            fi
+
+            step "Tuning retention for '$_cfg_name'..."
+            sudo snapper -c "$_cfg_name" set-config \
+                TIMELINE_CREATE=yes \
+                TIMELINE_CLEANUP=yes \
+                NUMBER_CLEANUP=yes \
+                NUMBER_MIN_AGE=1800 \
+                NUMBER_LIMIT=50 \
+                NUMBER_LIMIT_IMPORTANT=10 \
+                TIMELINE_MIN_AGE=1800 \
+                TIMELINE_LIMIT_HOURLY="$_hourly" \
+                TIMELINE_LIMIT_DAILY="$_daily" \
+                TIMELINE_LIMIT_WEEKLY="$_weekly" \
+                TIMELINE_LIMIT_MONTHLY="$_monthly" \
+                TIMELINE_LIMIT_YEARLY="$_yearly" \
+                2>/dev/null \
+                || warn "snapper set-config" "Could not tune '$_cfg_name' — you can adjust it later in /etc/snapper/configs/$_cfg_name"
+            ok "Retention tuned for '$_cfg_name'"
+
+            _snapper_configs+=("$_cfg_name")
+        done
+
+        # ── Fix .snapshots permissions so non-root can list snapshots ─────────
+        for _cfg in "${_snapper_configs[@]}"; do
+            _cfg_mp=$(snapper -c "$_cfg" get-config 2>/dev/null | awk '/^SUBVOLUME/{print $3}')
+            if [[ -d "${_cfg_mp}/.snapshots" ]]; then
+                sudo chmod 750 "${_cfg_mp}/.snapshots" 2>/dev/null || true
+                sudo chown root:"$USER" "${_cfg_mp}/.snapshots" 2>/dev/null || true
+            fi
+        done
+        ok ".snapshots permissions set"
+
+        # ── Enable timers ─────────────────────────────────────────────────────
+        task "Enabling snapshot timers ${DIM}(timeline + cleanup)${R}" \
+            sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+
+        # snap-pac triggers a pre/post snapshot around every pacman transaction
+        if pacman -Q snap-pac &>/dev/null; then
+            ok "snap-pac installed — pacman transactions will be snapshotted automatically"
+        else
+            skip "snap-pac (not installed — pacman hooks won't trigger snapshots)"
+        fi
+
+        # ── Limine snapshot sync ───────────────────────────────────────────────
         if command -v limine-snapper-sync &>/dev/null; then
-            task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" sudo systemctl enable --now limine-snapper-sync.service
+            task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" \
+                sudo systemctl enable --now limine-snapper-sync.service
         else
             skip "limine-snapper-sync (not installed)"
         fi
+
     else
         skip "Btrfs snapshots — Snapper (root filesystem is not Btrfs)"
     fi
