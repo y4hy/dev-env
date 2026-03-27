@@ -44,7 +44,8 @@ spinner_stop() {
 }
 
 # ── Phase progress bar ────────────────────────────────────────────────────────────
-_TOTAL_PHASES=8
+_TOTAL_PHASES=9
+_PHASE_NUM=1
 
 _phasebar() {
     local current=$1 total=$2
@@ -65,15 +66,16 @@ _elapsed() {
 }
 
 section() {
-    local num="$1" title="$2" badge="${3:-}"
+    local title="$1" badge="${2:-}"
     echo ""
     echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
     if [[ -n "$badge" ]]; then
-        echo -e "  ${B}${WHITE}Phase $num — $title${R}  ${YELLOW}$badge${R}"
+        echo -e "  ${B}${WHITE}Phase $_PHASE_NUM — $title${R}  ${YELLOW}$badge${R}"
     else
-        echo -e "  ${B}${WHITE}Phase $num — $title${R}"
+        echo -e "  ${B}${WHITE}Phase $_PHASE_NUM — $title${R}"
     fi
-    _phasebar "$num" "$_TOTAL_PHASES"
+    _phasebar "$_PHASE_NUM" "$_TOTAL_PHASES"
+    ((_PHASE_NUM++))
     echo ""
 }
 
@@ -132,7 +134,7 @@ task() {
 clear
 echo ""
 echo -e "  ${B}${WHITE}We are here to alleviate your suffer, but not thoroughly${R}"
-echo -e "  ${GRAY}$_TOTAL_PHASES phases  ·  output is suppressed, errors will be shown${R}"
+echo -e "  ${GRAY}Output is suppressed, errors will be shown${R}"
 echo ""
 
 # ── Preflight ─────────────────────────────────────────────────────────────────────
@@ -153,7 +155,7 @@ echo -e "  ${GRAY}────────────────────�
 echo -e "  ${B}${WHITE}Environment${R}"
 echo ""
 echo -e "  ${B}[1]${R}  Bare-metal"
-echo -e "       ${GRAY}NVIDIA · Bluetooth · KVM/QEMU · Btrfs snapshots · CoolerControl${R}"
+echo -e "       ${GRAY}NVIDIA · Bluetooth · KVM/QEMU · Btrfs snapshots · CoolerControl · Limine${R}"
 echo ""
 echo -e "  ${B}[2]${R}  Virtual Machine"
 echo -e "       ${GRAY}Skips all hardware-specific packages and services${R}"
@@ -164,11 +166,12 @@ case "$_choice" in
     2)
         INSTALL_FOR_VM="true"
         _TOTAL_PHASES=6
-        ok "VM mode — phases 6 and 7 will be skipped"
+        ok "VM mode selected — hardware phases will be skipped"
         ;;
     *)
         INSTALL_FOR_VM="false"
-        ok "Bare-metal mode — all 8 phases will run"
+        _TOTAL_PHASES=9
+        ok "Bare-metal mode selected — all 9 phases will run"
         ;;
 esac
 
@@ -189,7 +192,7 @@ pacman_packages_bare_metal=(
     nvidia-dkms nvidia-utils nvidia-settings nvidia-container-toolkit
     bluez bluez-utils blueman
     qemu-desktop virt-manager libvirt dnsmasq vde2 edk2-ovmf
-    snapper snap-pac limine efibootmgr
+    snapper snap-pac limine efibootmgr b3sum inotify-tools
 )
 aur_packages_base=(
     zen-browser-bin obsidian opencode-bin yaru-colors-gtk-theme neofetch
@@ -207,13 +210,13 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
 fi
 
 # ── Phase 1 — System update ───────────────────────────────────────────────────────
-section 1 "System update"
+section "System update"
 task "Upgrading system packages ${DIM}(fetching latest OS updates, ~1-2m)${R}" sudo pacman -Syu --noconfirm
 task "Installing build dependencies ${DIM}(compilers & headers)${R}" sudo pacman -S --noconfirm --needed \
     git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 # ── Phase 2 — Rust ───────────────────────────────────────────────────────────────
-section 2 "Rust toolchain"
+section "Rust toolchain"
 
 if ! command -v rustup &>/dev/null; then
     step "Fetching official rustup installer..."
@@ -229,7 +232,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 task "Adding rust-analyzer component ${DIM}(for Neovim LSP)${R}" rustup component add rust-analyzer
 
 # ── Phase 3 — AUR helper ──────────────────────────────────────────────────────────
-section 3 "AUR helper — paru"
+section "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
     task "Cloning paru from AUR ${DIM}(pre-compiled binary)${R}" git clone "https://aur.archlinux.org/paru.git" "$_tmp"
@@ -241,14 +244,14 @@ fi
 task "Syncing AUR databases" paru -Sy --noconfirm
 
 # ── Phase 4 — Packages ────────────────────────────────────────────────────────────
-section 4 "Package installation"
+section "Package installation"
 echo -e "  ${GRAY}pacman: ${#install_pacman_packages[@]} packages  ·  AUR: ${#install_aur_packages[@]} packages${R}"
 echo ""
 task "Installing official packages ${DIM}(~2-5m depending on network)${R}" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
 task "Installing AUR packages ${DIM}(compiling sources, ~5-10m)${R}" paru -S --noconfirm --needed "${install_aur_packages[@]}"
 
 # ── Phase 5 — Services & config ───────────────────────────────────────────────────
-section 5 "Services & system config"
+section "Services & system config"
 task "Enabling NetworkManager" sudo systemctl enable --now NetworkManager.service
 
 if pacman -Q blueman &>/dev/null; then
@@ -298,37 +301,77 @@ step "Configuring Git credential helper..."
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 ok "Git credential helper set"
 
-# ── Phase 6 — NVIDIA & Limine ─────────────────────────────────────────────────────
-if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
-    section 6 "NVIDIA & Limine config" "bare-metal only"
+# ── Phase 6 — Limine Installation ─────────────────────────────────────────────────
+if [[ "$INSTALL_FOR_VM" == "false" ]]; then
+    section "Limine Installation" "bare-metal only"
+    
+    step "Detecting EFI System Partition (ESP)..."
+    ESP=$(findmnt -n -r -o TARGET -t vfat | grep -E '^/boot|^/efi' | head -n 1)
+    if [[ -z "$ESP" ]]; then
+        ESP="/boot"
+        warn "ESP Detection" "Could not strictly detect a FAT32 ESP via findmnt, defaulting to $ESP"
+    else
+        ok "Found ESP at $ESP"
+    fi
+
+    task "Deploying Limine EFI to UEFI fallback path" sudo bash -c "mkdir -p \"$ESP/EFI/BOOT\" && cp /usr/share/limine/BOOTX64.EFI \"$ESP/EFI/BOOT/BOOTX64.EFI\""
+
+    if [[ ! -f "$ESP/limine.conf" ]]; then
+        step "Creating base limine.conf with snapshot support..."
+        printf "timeout: 5\n//Snapshots\n" | sudo tee "$ESP/limine.conf" >/dev/null
+        ok "Base limine.conf created"
+    else
+        if ! grep -q "//Snapshots" "$ESP/limine.conf"; then
+            echo "//Snapshots" | sudo tee -a "$ESP/limine.conf" >/dev/null
+            ok "Appended //Snapshots marker to existing limine.conf"
+        else
+            ok "limine.conf already configured for snapshots"
+        fi
+    fi
+fi
+
+# ── Phase 7 — NVIDIA & mkinitcpio ─────────────────────────────────────────────────
+if [[ "$INSTALL_FOR_VM" == "false" ]]; then
+    section "NVIDIA & Kernel Config" "bare-metal only"
     _ts=$(date +%Y%m%d%H%M%S)
 
-    if [[ -f /etc/kernel/cmdline ]]; then
-        step "Patching kernel cmdline... ${DIM}(adding DRM modeset)${R}"
-        sudo cp /etc/kernel/cmdline "/etc/kernel/cmdline.backup.$_ts"
-        grep -Eq 'nvidia-drm\.modeset=1' /etc/kernel/cmdline \
-            || sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
-        grep -Eq 'modprobe\.blacklist=nouveau' /etc/kernel/cmdline \
-            || sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
-        ok "Kernel cmdline patched"
-    else
-        step "Creating new kernel cmdline..."
-        echo "nvidia-drm.modeset=1 modprobe.blacklist=nouveau" | sudo tee /etc/kernel/cmdline >/dev/null
-        ok "Kernel cmdline created with NVIDIA flags"
-        warn "ACTION REQUIRED" "Created /etc/kernel/cmdline, but you MUST manually add your root=... parameter before rebooting!"
+    if pacman -Q nvidia-dkms &>/dev/null; then
+        if [[ -f /etc/kernel/cmdline ]]; then
+            step "Patching kernel cmdline... ${DIM}(adding DRM modeset)${R}"
+            sudo cp /etc/kernel/cmdline "/etc/kernel/cmdline.backup.$_ts"
+            grep -Eq 'nvidia-drm\.modeset=1' /etc/kernel/cmdline \
+                || sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
+            grep -Eq 'modprobe\.blacklist=nouveau' /etc/kernel/cmdline \
+                || sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
+            ok "Kernel cmdline patched"
+        else
+            step "Creating new kernel cmdline..."
+            echo "nvidia-drm.modeset=1 modprobe.blacklist=nouveau" | sudo tee /etc/kernel/cmdline >/dev/null
+            ok "Kernel cmdline created with NVIDIA flags"
+            warn "ACTION REQUIRED" "Created /etc/kernel/cmdline, but you MUST manually add your root=... parameter before rebooting!"
+        fi
     fi
 
     if [[ -f /etc/mkinitcpio.conf ]]; then
-        step "Patching mkinitcpio modules... ${DIM}(injecting early KMS modules)${R}"
+        step "Patching mkinitcpio modules & hooks... ${DIM}(injecting early KMS and Btrfs overlay)${R}"
         sudo cp /etc/mkinitcpio.conf "/etc/mkinitcpio.conf.backup.$_ts"
-        if grep -q '^MODULES=' /etc/mkinitcpio.conf; then
+        
+        # Inject NVIDIA modules
+        if pacman -Q nvidia-dkms &>/dev/null && grep -q '^MODULES=' /etc/mkinitcpio.conf; then
             for _mod in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
                 grep -Eq "^MODULES=.*\b${_mod}\b" /etc/mkinitcpio.conf && continue
                 sudo sed -i "s/^MODULES=(\(.*\))/MODULES=(\1 ${_mod})/" /etc/mkinitcpio.conf
                 sudo sed -i 's/^MODULES=( /MODULES=(/' /etc/mkinitcpio.conf
             done
         fi
-        ok "mkinitcpio modules patched"
+        
+        # Inject Snapper btrfs-overlayfs hook
+        if grep -q '^HOOKS=' /etc/mkinitcpio.conf; then
+            if ! grep -Eq '\bbtrfs-overlayfs\b' /etc/mkinitcpio.conf; then
+                sudo sed -i 's/\(filesystems\)/\1 btrfs-overlayfs/' /etc/mkinitcpio.conf
+            fi
+        fi
+        ok "mkinitcpio configured"
     fi
 
     if command -v limine-mkinitcpio &>/dev/null; then
@@ -339,18 +382,12 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
 
     if command -v limine-update &>/dev/null; then
         task "Updating Limine boot entries" sudo limine-update
-    else
-        skip "limine-update (not found)"
     fi
-elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
-    echo ""
-    echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
-    skip "Phase 6 — NVIDIA & Limine (VM mode)"
 fi
 
-# ── Phase 7 — Snapper ────────────────────────────────────────────────────────────
+# ── Phase 8 — Snapper ────────────────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; then
-    section 7 "Btrfs snapshots — Snapper" "bare-metal only"
+    section "Btrfs snapshots — Snapper" "bare-metal only"
 
     if [[ ! -f /etc/snapper/configs/root ]]; then
         task "Creating Snapper root config ${DIM}(initializes Btrfs layout)${R}" sudo snapper -c root create-config /
@@ -365,16 +402,14 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; the
     else
         skip "limine-snapper-sync (not installed)"
     fi
-elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
-    skip "Phase 7 — Snapper (VM mode)"
 fi
 
-# ── Phase 8 — User environment ────────────────────────────────────────────────────
-section 8 "User environment"
+# ── Phase 9 — User environment ────────────────────────────────────────────────────
+section "User environment"
 
 step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
-cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles
+cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles 2>/dev/null || true
 rm -rf ~/.config/fish ~/.config/hypr
 (cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux) \
     || die "stow failed — check for pre-existing config conflicts"
