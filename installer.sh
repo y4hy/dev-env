@@ -107,7 +107,7 @@ fi
 # --- Official Arch Repositories (Pacman) ---
 pacman_packages_base=(
     # Desktop Environment & Core Apps
-    hyprland hyprshot neovim kitty fish rofi swww dunst stow wl-clipboard lxqt-sudo less
+    hyprland hyprshot neovim kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
     zathura
     # File Management & System Utilities
