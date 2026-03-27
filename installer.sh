@@ -1,109 +1,178 @@
 #!/bin/bash
 
-# ===============================================================================
-# Arch Linux — Hyprland Setup Script
-# ===============================================================================
-
 set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+_SCRIPT_START=$SECONDS
 
-# ── Colors & symbols ────────────────────────────────────────────────────────────
-RESET="\033[0m"
-BOLD="\033[1m"
+# ── ANSI ────────────────────────────────────────────────────────────────────────
+R="\033[0m"
+B="\033[1m"
 DIM="\033[2m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-RED="\033[31m"
-CYAN="\033[36m"
-GRAY="\033[90m"
+GREEN="\033[38;5;114m"
+YELLOW="\033[38;5;221m"
+RED="\033[38;5;203m"
+BLUE="\033[38;5;110m"
+GRAY="\033[38;5;242m"
+WHITE="\033[38;5;252m"
 
-OK="${GREEN}✓${RESET}"
-WARN="${YELLOW}!${RESET}"
-ERR="${RED}✗${RESET}"
-ARROW="${CYAN}›${RESET}"
+# ── Spinner ──────────────────────────────────────────────────────────────────────
+_SPINNER_PID=""
+_SPINNER_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 
-# ── Logging helpers ─────────────────────────────────────────────────────────────
+spinner_start() {
+    local msg="$1"
+    (
+        local i=0
+        while true; do
+            printf "\r  \033[38;5;110m${_SPINNER_FRAMES[$i]}\033[0m  %s " "$msg"
+            i=$(( (i+1) % 10 ))
+            sleep 0.08
+        done
+    ) &
+    _SPINNER_PID=$!
+    disown "$_SPINNER_PID"
+}
+
+spinner_stop() {
+    if [[ -n "$_SPINNER_PID" ]]; then
+        kill "$_SPINNER_PID" 2>/dev/null
+        wait "$_SPINNER_PID" 2>/dev/null || true
+        _SPINNER_PID=""
+        printf "\r\033[2K"
+    fi
+}
+
+# ── Phase progress bar ────────────────────────────────────────────────────────────
+_TOTAL_PHASES=8
+
+_phasebar() {
+    local current=$1 total=$2
+    local filled=$(( current * 24 / total ))
+    local empty=$(( 24 - filled ))
+    local bar
+    bar="${BLUE}["
+    bar+="$(printf '█%.0s' $(seq 1 $filled) 2>/dev/null)"
+    bar+="${GRAY}$(printf '░%.0s' $(seq 1 $empty) 2>/dev/null)"
+    bar+="${BLUE}]${R}"
+    echo -e "  $bar ${GRAY}$current / $total${R}"
+}
+
+# ── Helpers ───────────────────────────────────────────────────────────────────────
+_elapsed() {
+    local s=$(( SECONDS - _SCRIPT_START ))
+    printf "%dm%02ds" $(( s / 60 )) $(( s % 60 ))
+}
+
 section() {
+    local num="$1" title="$2" badge="${3:-}"
     echo ""
-    echo -e "${BOLD}  $1${RESET}"
-    echo -e "${GRAY}  $(printf '─%.0s' {1..60})${RESET}"
+    echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
+    if [[ -n "$badge" ]]; then
+        echo -e "  ${B}${WHITE}Phase $num — $title${R}  ${YELLOW}$badge${R}"
+    else
+        echo -e "  ${B}${WHITE}Phase $num — $title${R}"
+    fi
+    _phasebar "$num" "$_TOTAL_PHASES"
+    echo ""
 }
 
-step() {
-    echo -e "  ${ARROW} $1"
-}
-
-ok() {
-    echo -e "  ${OK} $1"
-}
+step()  { echo -e "  ${BLUE}·${R}  $1"; }
+ok()    { echo -e "  ${GREEN}✓${R}  $1"; }
+skip()  { echo -e "  ${GRAY}–  $1 (skipped)${R}"; }
 
 warn() {
     echo ""
-    echo -e "  ${WARN}  ${YELLOW}$1${RESET}"
-    echo -e "  ${GRAY}  $2${RESET}"
+    echo -e "  ${YELLOW}▲${R}  ${B}${YELLOW}$1${R}"
+    echo -e "     ${GRAY}$2${R}"
     echo ""
 }
 
 die() {
-    echo -e "  ${ERR} ${RED}Error:${RESET} $1" >&2
+    spinner_stop
+    echo ""
+    echo -e "  ${RED}✗${R}  ${B}${RED}Error:${R} $1" >&2
+    echo -e "     ${GRAY}elapsed: $(_elapsed)${R}" >&2
+    echo ""
     exit 1
 }
 
-run_quiet() {
-    # Run a command, only showing output if it fails
+# task "Description" [sudo] cmd [args...]
+task() {
     local desc="$1"; shift
-    step "$desc"
-    local tmp
+    local use_sudo=false
+    [[ "$1" == "sudo" ]] && { use_sudo=true; shift; }
+
+    spinner_start "$desc"
+    local tmp rc=0
     tmp=$(mktemp)
-    if ! "$@" >"$tmp" 2>&1; then
-        echo -e "  ${ERR} Failed. Output:"
-        cat "$tmp"
+
+    if $use_sudo; then
+        sudo "$@" >"$tmp" 2>&1 || rc=$?
+    else
+        "$@" >"$tmp" 2>&1 || rc=$?
+    fi
+
+    spinner_stop
+
+    if [[ $rc -ne 0 ]]; then
+        echo -e "  ${RED}✗${R}  ${B}Failed:${R} $desc"
+        echo ""
+        sed 's/^/      /' "$tmp"
+        echo ""
         rm -f "$tmp"
         exit 1
     fi
+
     rm -f "$tmp"
+    ok "$desc"
 }
 
-run_quiet_sudo() {
-    local desc="$1"; shift
-    step "$desc"
-    local tmp
-    tmp=$(mktemp)
-    if ! sudo "$@" >"$tmp" 2>&1; then
-        echo -e "  ${ERR} Failed. Output:"
-        cat "$tmp"
-        rm -f "$tmp"
-        exit 1
-    fi
-    rm -f "$tmp"
-}
+# ── Banner ────────────────────────────────────────────────────────────────────────
+clear
+echo ""
+echo -e "  ${B}${WHITE}Arch Linux — Hyprland setup${R}"
+echo -e "  ${GRAY}$_TOTAL_PHASES phases  ·  output is suppressed, errors will be shown${R}"
+echo ""
 
-# ── Preflight checks ────────────────────────────────────────────────────────────
-[ "$EUID" -eq 0 ] && die "Do not run this script as root."
+# ── Preflight ─────────────────────────────────────────────────────────────────────
+[[ "$EUID" -eq 0 ]] && die "Do not run this script as root."
 
-# ── Sudo keepalive ──────────────────────────────────────────────────────────────
-section "Privileges"
-step "Requesting sudo..."
-sudo -v
+# ── Sudo ──────────────────────────────────────────────────────────────────────────
+echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
+echo -e "  ${B}${WHITE}Privileges${R}"
+echo ""
+step "Enter your password to grant sudo access for this session"
+sudo -v || die "sudo authentication failed"
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-ok "Sudo acquired"
+ok "Sudo active"
+echo ""
 
-# ── Environment selection ───────────────────────────────────────────────────────
-section "Environment"
+# ── Environment ───────────────────────────────────────────────────────────────────
+echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
+echo -e "  ${B}${WHITE}Environment${R}"
 echo ""
-echo -e "  ${DIM}Select your installation target:${RESET}"
+echo -e "  ${B}[1]${R}  Bare-metal"
+echo -e "       ${GRAY}NVIDIA · Bluetooth · KVM/QEMU · Btrfs snapshots · CoolerControl${R}"
 echo ""
-echo -e "    ${BOLD}[1]${RESET}  Bare-metal  ${GRAY}(NVIDIA, Bluetooth, KVM, Btrfs snapshots)${RESET}"
-echo -e "    ${BOLD}[2]${RESET}  Virtual Machine  ${GRAY}(skips hardware-specific packages)${RESET}"
+echo -e "  ${B}[2]${R}  Virtual Machine"
+echo -e "       ${GRAY}Skips all hardware-specific packages and services${R}"
 echo ""
-read -rp "  Choice [1/2]: " _choice
+read -rp "  › Choice [1/2]: " _choice
+echo ""
 case "$_choice" in
-    2) INSTALL_FOR_VM="true";  echo -e "\n  ${OK} VM mode selected" ;;
-    *) INSTALL_FOR_VM="false"; echo -e "\n  ${OK} Bare-metal mode selected" ;;
+    2)
+        INSTALL_FOR_VM="true"
+        _TOTAL_PHASES=6
+        ok "VM mode — phases 5 and 6 will be skipped"
+        ;;
+    *)
+        INSTALL_FOR_VM="false"
+        ok "Bare-metal mode — all 8 phases will run"
+        ;;
 esac
 
-# ── Package lists ───────────────────────────────────────────────────────────────
+# ── Package lists ─────────────────────────────────────────────────────────────────
 pacman_packages_base=(
     hyprland hyprshot neovim kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
@@ -132,77 +201,71 @@ aur_packages_bare_metal=(
 
 install_pacman_packages=("${pacman_packages_base[@]}")
 install_aur_packages=("${aur_packages_base[@]}")
-if [ "$INSTALL_FOR_VM" = "false" ]; then
+if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     install_pacman_packages+=("${pacman_packages_bare_metal[@]}")
     install_aur_packages+=("${aur_packages_bare_metal[@]}")
 fi
 
-# ── Phase 1 — System update ─────────────────────────────────────────────────────
-section "Phase 1 — System update"
-run_quiet_sudo "Updating package databases and upgrading system..." pacman -Syu --noconfirm
-run_quiet_sudo "Installing build dependencies..." pacman -S --noconfirm --needed \
+# ── Phase 1 — System update ───────────────────────────────────────────────────────
+section 1 "System update"
+task "Upgrading system packages" sudo pacman -Syu --noconfirm
+task "Installing build dependencies" sudo pacman -S --noconfirm --needed \
     git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
-ok "System up to date"
 
-# ── Phase 2 — AUR helper ────────────────────────────────────────────────────────
-section "Phase 2 — AUR helper (paru)"
+# ── Phase 2 — AUR helper ──────────────────────────────────────────────────────────
+section 2 "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
-    step "Building paru from AUR..."
     _tmp=$(mktemp -d)
-    git clone "https://aur.archlinux.org/paru.git" "$_tmp" -q
-    (cd "$_tmp" && makepkg -si --noconfirm -q) || die "paru build failed"
+    spinner_start "Cloning paru from AUR"
+    git clone "https://aur.archlinux.org/paru.git" "$_tmp" -q 2>/dev/null
+    spinner_stop; ok "Repository cloned"
+    spinner_start "Building and installing paru"
+    (cd "$_tmp" && makepkg -si --noconfirm -q 2>/dev/null) || die "paru build failed"
+    spinner_stop; ok "paru installed"
     rm -rf "$_tmp"
-    ok "paru installed"
 else
     ok "paru already installed"
 fi
-step "Syncing AUR databases..."
-paru -Syu --noconfirm -q &>/dev/null
-ok "AUR databases synced"
+task "Syncing AUR databases" paru -Syu --noconfirm -q
 
-# ── Phase 3 — Packages ──────────────────────────────────────────────────────────
-section "Phase 3 — Package installation"
-step "Installing official packages (${#install_pacman_packages[@]} packages)..."
-sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}" &>/dev/null \
-    || die "pacman installation failed"
-ok "Official packages installed"
+# ── Phase 3 — Packages ────────────────────────────────────────────────────────────
+section 3 "Package installation"
+echo -e "  ${GRAY}pacman: ${#install_pacman_packages[@]} packages  ·  AUR: ${#install_aur_packages[@]} packages${R}"
+echo ""
+task "Installing official packages (${#install_pacman_packages[@]})" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
+task "Installing AUR packages (${#install_aur_packages[@]})" paru -S --noconfirm --needed "${install_aur_packages[@]}"
 
-step "Installing AUR packages (${#install_aur_packages[@]} packages)..."
-paru -S --noconfirm --needed "${install_aur_packages[@]}" &>/dev/null \
-    || die "AUR package installation failed"
-ok "AUR packages installed"
-
-# ── Phase 4 — Services & system config ─────────────────────────────────────────
-section "Phase 4 — Services & system config"
-
-run_quiet_sudo "Enabling NetworkManager..." systemctl enable --now NetworkManager.service
+# ── Phase 4 — Services & config ───────────────────────────────────────────────────
+section 4 "Services & system config"
+task "Enabling NetworkManager" sudo systemctl enable --now NetworkManager.service
 
 if pacman -Q blueman &>/dev/null; then
-    run_quiet_sudo "Enabling Bluetooth..." systemctl enable --now bluetooth.service
+    task "Enabling Bluetooth" sudo systemctl enable --now bluetooth.service
+else
+    skip "Bluetooth"
 fi
 
 if command -v coolercontrold &>/dev/null; then
-    run_quiet_sudo "Enabling CoolerControl..." systemctl enable --now coolercontrold.service
+    task "Enabling CoolerControl" sudo systemctl enable --now coolercontrold.service
+else
+    skip "CoolerControl"
 fi
 
-step "Configuring Docker..."
-sudo systemctl enable --now docker &>/dev/null
+task "Enabling Docker" sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER" &>/dev/null
 warn "docker group" "Log out and back in for Docker access to take effect."
 
 if pacman -Q libvirt &>/dev/null; then
-    step "Configuring Libvirt..."
-    sudo systemctl enable --now libvirtd.service &>/dev/null
+    task "Enabling Libvirt" sudo systemctl enable --now libvirtd.service
     sudo usermod -aG libvirt "$USER" &>/dev/null
     warn "libvirt group" "Log out and back in for KVM/QEMU access to take effect."
+else
+    skip "Libvirt"
 fi
 
-# GNOME Keyring PAM
 step "Configuring GNOME Keyring (PAM)..."
 PAM_LOGIN="/etc/pam.d/login"
-if [ -f "$PAM_LOGIN" ]; then
-    sudo cp "$PAM_LOGIN" "$PAM_LOGIN.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
-fi
+[[ -f "$PAM_LOGIN" ]] && sudo cp "$PAM_LOGIN" "$PAM_LOGIN.backup.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
 if ! grep -q "pam_gnome_keyring\.so" "$PAM_LOGIN" 2>/dev/null; then
     if grep -q "^auth.*system-local-login" "$PAM_LOGIN" 2>/dev/null; then
         sudo sed -i '/^auth[[:space:]]\+include[[:space:]]\+system-local-login/a auth        optional    pam_gnome_keyring.so' "$PAM_LOGIN"
@@ -217,29 +280,30 @@ if ! grep -q "pam_gnome_keyring\.so auto_start" "$PAM_LOGIN" 2>/dev/null; then
         echo "session     optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" >/dev/null
     fi
 fi
+ok "GNOME Keyring configured"
 
 step "Configuring Git credential helper..."
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
+ok "Git credential helper set"
 
-ok "Services configured"
-
-# ── Phase 5 — NVIDIA & Limine (bare-metal only) ─────────────────────────────────
-if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
-    section "Phase 5 — NVIDIA & Limine config"
+# ── Phase 5 — NVIDIA & Limine ─────────────────────────────────────────────────────
+if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
+    section 5 "NVIDIA & Limine config" "bare-metal only"
     _ts=$(date +%Y%m%d%H%M%S)
 
-    if [ -f /etc/kernel/cmdline ]; then
+    if [[ -f /etc/kernel/cmdline ]]; then
         step "Patching kernel cmdline..."
         sudo cp /etc/kernel/cmdline "/etc/kernel/cmdline.backup.$_ts"
         grep -Eq 'nvidia-drm\.modeset=1' /etc/kernel/cmdline \
             || sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
         grep -Eq 'modprobe\.blacklist=nouveau' /etc/kernel/cmdline \
             || sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
+        ok "Kernel cmdline patched"
     else
-        warn "kernel cmdline" "/etc/kernel/cmdline not found — add NVIDIA params to limine.conf manually."
+        warn "kernel cmdline not found" "Add nvidia-drm.modeset=1 and modprobe.blacklist=nouveau to limine.conf manually."
     fi
 
-    if [ -f /etc/mkinitcpio.conf ]; then
+    if [[ -f /etc/mkinitcpio.conf ]]; then
         step "Patching mkinitcpio modules..."
         sudo cp /etc/mkinitcpio.conf "/etc/mkinitcpio.conf.backup.$_ts"
         if grep -q '^MODULES=' /etc/mkinitcpio.conf; then
@@ -249,79 +313,86 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
                 sudo sed -i 's/^MODULES=( /MODULES=(/' /etc/mkinitcpio.conf
             done
         fi
+        ok "mkinitcpio modules patched"
     fi
 
-    step "Regenerating initramfs..."
     if command -v limine-mkinitcpio &>/dev/null; then
-        sudo limine-mkinitcpio &>/dev/null
+        task "Regenerating initramfs" sudo limine-mkinitcpio
     else
-        sudo mkinitcpio -P &>/dev/null
+        task "Regenerating initramfs" sudo mkinitcpio -P
     fi
 
     if command -v limine-update &>/dev/null; then
-        step "Updating Limine boot entries..."
-        sudo limine-update &>/dev/null
+        task "Updating Limine boot entries" sudo limine-update
+    else
+        skip "limine-update (not found)"
     fi
-
-    ok "NVIDIA & Limine configured"
+elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
+    echo ""
+    echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
+    skip "Phase 5 — NVIDIA & Limine (VM mode)"
 fi
 
-# ── Phase 6 — Snapper / Btrfs (bare-metal only) ────────────────────────────────
-if [ "$INSTALL_FOR_VM" = "false" ] && [ "$(stat -c %T /)" = "btrfs" ]; then
-    section "Phase 6 — Btrfs snapshots (Snapper)"
+# ── Phase 6 — Snapper ────────────────────────────────────────────────────────────
+if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; then
+    section 6 "Btrfs snapshots — Snapper" "bare-metal only"
 
-    if [ ! -f /etc/snapper/configs/root ]; then
-        run_quiet_sudo "Creating Snapper root config..." snapper -c root create-config /
+    if [[ ! -f /etc/snapper/configs/root ]]; then
+        task "Creating Snapper root config" sudo snapper -c root create-config /
     else
         ok "Snapper config already exists"
     fi
 
-    run_quiet_sudo "Enabling snapshot timers..." systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+    task "Enabling snapshot timers" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
 
     if command -v limine-snapper-sync &>/dev/null; then
-        run_quiet_sudo "Enabling Limine snapshot sync..." systemctl enable --now limine-snapper-sync.service
+        task "Enabling Limine snapshot sync" sudo systemctl enable --now limine-snapper-sync.service
+    else
+        skip "limine-snapper-sync (not installed)"
     fi
-
-    ok "Snapper configured"
+elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
+    skip "Phase 6 — Snapper (VM mode)"
 fi
 
-# ── Phase 7 — Rust toolchain ────────────────────────────────────────────────────
-section "Phase 7 — Rust toolchain"
+# ── Phase 7 — Rust ───────────────────────────────────────────────────────────────
+section 7 "Rust toolchain"
 if ! command -v rustup &>/dev/null; then
-    run_quiet_sudo "Installing rustup..." pacman -S --noconfirm --needed rustup
+    task "Installing rustup" sudo pacman -S --noconfirm --needed rustup
+else
+    ok "rustup already installed"
 fi
-step "Setting stable toolchain..."
-rustup default stable &>/dev/null
-step "Adding rust-analyzer..."
-rustup component add rust-analyzer &>/dev/null
-ok "Rust configured"
+task "Setting stable toolchain" rustup default stable
+task "Adding rust-analyzer component" rustup component add rust-analyzer
 
-# ── Phase 8 — User environment ──────────────────────────────────────────────────
-section "Phase 8 — User environment"
+# ── Phase 8 — User environment ────────────────────────────────────────────────────
+section 8 "User environment"
 
 step "Deploying dotfiles..."
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles
 rm -rf ~/.config/fish ~/.config/hypr
-(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux)
-ok "Dotfiles applied"
+(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux) \
+    || die "stow failed — check for pre-existing config conflicts"
+ok "Dotfiles applied via stow"
 
-step "Setting GTK theme..."
+step "Applying GTK theme..."
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-ok "Theme applied"
+ok "Theme: Yaru-Grey-dark  ·  Icons: Papirus-Dark"
 
 step "Setting up Tmux Plugin Manager..."
 TPM_DIR="$HOME/.tmux/plugins/tpm"
-[ ! -d "$TPM_DIR" ] && git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" -q
+if [[ ! -d "$TPM_DIR" ]]; then
+    spinner_start "Cloning TPM"
+    git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" -q
+    spinner_stop
+fi
 "$TPM_DIR/bin/install_plugins" &>/dev/null
 ok "Tmux plugins installed"
 
 if [[ "$(basename "$SHELL")" != "fish" ]]; then
-    step "Changing default shell to Fish..."
-    sudo chsh -s "$(which fish)" "$USER" &>/dev/null
-    ok "Default shell set to Fish"
+    task "Changing default shell to Fish" sudo chsh -s "$(which fish)" "$USER"
 else
     ok "Default shell already Fish"
 fi
@@ -330,16 +401,27 @@ step "Setting Nemo as default file manager..."
 xdg-mime default nemo.desktop inode/directory application/x-gnome-saved-search &>/dev/null
 ok "Nemo set as default"
 
-# ── Done ────────────────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}  ✓ Setup complete${RESET}"
+echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
 echo ""
-echo -e "  ${GRAY}Next steps:${RESET}"
-echo -e "  ${ARROW} Log out and back in to apply group changes (docker, libvirt)"
-echo -e "  ${ARROW} Reboot to apply kernel, driver, and shell changes"
+echo -e "  ${GREEN}${B}✓  Setup complete${R}  ${GRAY}($(_elapsed))${R}"
 echo ""
-read -rp "  Reboot now? [y/N]: " _reboot
+echo -e "  ${GRAY}Next steps:${R}"
+echo -e "  ${BLUE}·${R}  Log out and back in  ${GRAY}→ apply docker / libvirt group changes${R}"
+echo -e "  ${BLUE}·${R}  Reboot               ${GRAY}→ apply kernel, driver, and shell changes${R}"
+echo ""
+echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
+echo ""
+read -rp "  Reboot now? [y/N] › " _reboot
 case "$_reboot" in
-    y|Y) sudo reboot now ;;
-    *)   echo -e "\n  ${GRAY}Reboot skipped. Run ${RESET}sudo reboot${GRAY} when ready.${RESET}\n" ;;
+    y|Y)
+        echo -e "\n  ${GRAY}Rebooting in 3 seconds…${R}"
+        sleep 3
+        sudo reboot now
+        ;;
+    *)
+        echo -e "\n  ${GRAY}Run ${R}sudo reboot${GRAY} when you're ready.${R}"
+        echo ""
+        ;;
 esac
