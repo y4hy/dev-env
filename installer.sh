@@ -527,7 +527,7 @@ step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles 2>/dev/null || true
 rm -rf ~/.config/fish ~/.config/hypr
-(cd ~/.dotfiles && stow fish kitty nvim rofi wp fastfetch dunst hyprland opencode tmux) \
+(cd ~/.dotfiles && stow fish kitty nvim rofi wp dunst hyprland opencode tmux) \
     || die "stow failed — check for pre-existing config conflicts"
 ok "Dotfiles applied via stow"
 
