@@ -277,7 +277,7 @@ if ! grep -q "pam_gnome_keyring\.so auto_start" "$PAM_LOGIN" 2>/dev/null; then
     if grep -q "^session.*system-local-login" "$PAM_LOGIN" 2>/dev/null; then
         sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session      optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
     else
-        echo "session     optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" >/dev/null
+        echo "session      optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" >/dev/null
     fi
 fi
 ok "GNOME Keyring configured"
@@ -300,7 +300,10 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
             || sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
         ok "Kernel cmdline patched"
     else
-        warn "kernel cmdline not found" "Add nvidia-drm.modeset=1 and modprobe.blacklist=nouveau to limine.conf manually."
+        step "Creating new kernel cmdline..."
+        echo "nvidia-drm.modeset=1 modprobe.blacklist=nouveau" | sudo tee /etc/kernel/cmdline >/dev/null
+        ok "Kernel cmdline created with NVIDIA flags"
+        warn "ACTION REQUIRED" "Created /etc/kernel/cmdline, but you MUST manually add your root=... parameter before rebooting!"
     fi
 
     if [[ -f /etc/mkinitcpio.conf ]]; then
@@ -356,11 +359,17 @@ fi
 
 # ── Phase 7 — Rust ───────────────────────────────────────────────────────────────
 section 7 "Rust toolchain"
+
+if pacman -Qq rust &>/dev/null && ! pacman -Qq rustup &>/dev/null; then
+    task "Removing conflicting 'rust' package" sudo pacman -Rdd --noconfirm rust
+fi
+
 if ! command -v rustup &>/dev/null; then
     task "Installing rustup" sudo pacman -S --noconfirm --needed rustup
 else
     ok "rustup already installed"
 fi
+
 task "Setting stable toolchain" rustup default stable
 task "Adding rust-analyzer component" rustup component add rust-analyzer
 
