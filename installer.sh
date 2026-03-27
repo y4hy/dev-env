@@ -196,7 +196,7 @@ aur_packages_base=(
     rofi-bluetooth-git ttf-0xproto-nerd
 )
 aur_packages_bare_metal=(
-    coolercontrol limine-entry-tool limine-snapper-sync bridge-utils
+    coolercontrol limine-snapper-sync bridge-utils limine-mkinitcpio-hook
 )
 
 install_pacman_packages=("${pacman_packages_base[@]}")
