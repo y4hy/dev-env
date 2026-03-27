@@ -164,7 +164,7 @@ case "$_choice" in
     2)
         INSTALL_FOR_VM="true"
         _TOTAL_PHASES=6
-        ok "VM mode — phases 5 and 6 will be skipped"
+        ok "VM mode — phases 6 and 7 will be skipped"
         ;;
     *)
         INSTALL_FOR_VM="false"
@@ -212,12 +212,30 @@ task "Upgrading system packages" sudo pacman -Syu --noconfirm
 task "Installing build dependencies" sudo pacman -S --noconfirm --needed \
     git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
-# ── Phase 2 — AUR helper ──────────────────────────────────────────────────────────
-section 2 "AUR helper — paru"
+# ── Phase 2 — Rust ───────────────────────────────────────────────────────────────
+section 2 "Rust toolchain"
+
+if ! command -v rustup &>/dev/null; then
+    step "Fetching official rustup installer..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup-init.sh
+    chmod +x /tmp/rustup-init.sh
+    task "Installing Rust via rustup" /tmp/rustup-init.sh -y --no-modify-path --profile default --default-toolchain stable
+    rm -f /tmp/rustup-init.sh
+else
+    ok "rustup already installed"
+fi
+
+# Export PATH so cargo is available immediately for the rest of the script
+export PATH="$HOME/.cargo/bin:$PATH"
+
+task "Adding rust-analyzer component" rustup component add rust-analyzer
+
+# ── Phase 3 — AUR helper ──────────────────────────────────────────────────────────
+section 3 "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
-    spinner_start "Cloning paru from AUR"
-    git clone "https://aur.archlinux.org/paru.git" "$_tmp" -q 2>/dev/null
+    spinner_start "Cloning paru-bin from AUR"
+    git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp" -q 2>/dev/null
     spinner_stop; ok "Repository cloned"
     spinner_start "Building and installing paru"
     (cd "$_tmp" && makepkg -si --noconfirm -q 2>/dev/null) || die "paru build failed"
@@ -228,15 +246,15 @@ else
 fi
 task "Syncing AUR databases" paru -Syu --noconfirm -q
 
-# ── Phase 3 — Packages ────────────────────────────────────────────────────────────
-section 3 "Package installation"
+# ── Phase 4 — Packages ────────────────────────────────────────────────────────────
+section 4 "Package installation"
 echo -e "  ${GRAY}pacman: ${#install_pacman_packages[@]} packages  ·  AUR: ${#install_aur_packages[@]} packages${R}"
 echo ""
 task "Installing official packages (${#install_pacman_packages[@]})" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
 task "Installing AUR packages (${#install_aur_packages[@]})" paru -S --noconfirm --needed "${install_aur_packages[@]}"
 
-# ── Phase 4 — Services & config ───────────────────────────────────────────────────
-section 4 "Services & system config"
+# ── Phase 5 — Services & config ───────────────────────────────────────────────────
+section 5 "Services & system config"
 task "Enabling NetworkManager" sudo systemctl enable --now NetworkManager.service
 
 if pacman -Q blueman &>/dev/null; then
@@ -286,9 +304,9 @@ step "Configuring Git credential helper..."
 git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 ok "Git credential helper set"
 
-# ── Phase 5 — NVIDIA & Limine ─────────────────────────────────────────────────────
+# ── Phase 6 — NVIDIA & Limine ─────────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
-    section 5 "NVIDIA & Limine config" "bare-metal only"
+    section 6 "NVIDIA & Limine config" "bare-metal only"
     _ts=$(date +%Y%m%d%H%M%S)
 
     if [[ -f /etc/kernel/cmdline ]]; then
@@ -333,12 +351,12 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
 elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
     echo ""
     echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
-    skip "Phase 5 — NVIDIA & Limine (VM mode)"
+    skip "Phase 6 — NVIDIA & Limine (VM mode)"
 fi
 
-# ── Phase 6 — Snapper ────────────────────────────────────────────────────────────
+# ── Phase 7 — Snapper ────────────────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; then
-    section 6 "Btrfs snapshots — Snapper" "bare-metal only"
+    section 7 "Btrfs snapshots — Snapper" "bare-metal only"
 
     if [[ ! -f /etc/snapper/configs/root ]]; then
         task "Creating Snapper root config" sudo snapper -c root create-config /
@@ -354,24 +372,8 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; the
         skip "limine-snapper-sync (not installed)"
     fi
 elif [[ "$INSTALL_FOR_VM" == "true" ]]; then
-    skip "Phase 6 — Snapper (VM mode)"
+    skip "Phase 7 — Snapper (VM mode)"
 fi
-
-# ── Phase 7 — Rust ───────────────────────────────────────────────────────────────
-section 7 "Rust toolchain"
-
-if pacman -Qq rust &>/dev/null && ! pacman -Qq rustup &>/dev/null; then
-    task "Removing conflicting 'rust' package" sudo pacman -Rdd --noconfirm rust
-fi
-
-if ! command -v rustup &>/dev/null; then
-    task "Installing rustup" sudo pacman -S --noconfirm --needed rustup
-else
-    ok "rustup already installed"
-fi
-
-task "Setting stable toolchain" rustup default stable
-task "Adding rust-analyzer component" rustup component add rust-analyzer
 
 # ── Phase 8 — User environment ────────────────────────────────────────────────────
 section 8 "User environment"
