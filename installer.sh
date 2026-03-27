@@ -69,8 +69,8 @@ esac
 # SYSTEM UPDATE & CORE DEPENDENCIES
 #-------------------------------------------------------------------------------
 log_header "Updating system and installing core packages..."
-sudo pacman -Syu --noconfirm
-sudo pacman -S --noconfirm --needed git base-devel linux linux-headers mkinitcpio openssh systemd-resolvconf
+yes "" | sudo pacman -Syu --noconfirm
+yes "" | sudo pacman -S --noconfirm --needed git base-devel linux linux-headers mkinitcpio openssh systemd-resolvconf
 
 #-------------------------------------------------------------------------------
 # AUR HELPER INSTALLATION (paru)
@@ -85,7 +85,7 @@ install_aur_helper() {
         local temp_dir
         temp_dir=$(mktemp -d)
         git clone "https://aur.archlinux.org/${repo}.git" "$temp_dir"
-        (cd "$temp_dir" && makepkg -si --noconfirm)
+        (cd "$temp_dir" && yes "" | makepkg -si --noconfirm)
         rm -rf "$temp_dir"
         echo "   -> $name has been installed successfully."
     else
@@ -97,7 +97,7 @@ install_aur_helper paru paru
 
 # Update AUR package databases with paru
 if command -v paru &> /dev/null; then
-    paru -Syu --noconfirm
+    yes "" | paru -Syu --noconfirm
 fi
 
 #-------------------------------------------------------------------------------
@@ -182,11 +182,11 @@ if [ "$INSTALL_FOR_VM" = "false" ]; then
 fi
 
 log_header "Installing packages from official repositories (Pacman)..."
-sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
+yes "" | sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
 
 log_header "Installing packages from the AUR (Paru)..."
 if command -v paru &> /dev/null; then
-    paru -S --noconfirm --needed "${install_aur_packages[@]}"
+    yes "" | paru -S --noconfirm --needed "${install_aur_packages[@]}"
 else
     echo "AUR helper 'paru' not found. Skipping AUR package installation." >&2
 fi
