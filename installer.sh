@@ -157,6 +157,7 @@ aur_packages_bare_metal=(
     # Hardware specific tools
     coolercontrol
     # Limine helpers
+    limine-entry-tool
     limine-snapper-sync
     # other
     bridge-utils
@@ -247,9 +248,9 @@ else
     echo "-> Skipping Snapper setup (Not a bare-metal Btrfs system)."
 fi
 
-# --- Deploy Limine bootloader ---
+# --- Deploy and refresh Limine bootloader entries ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q limine &>/dev/null; then
-    echo "   -> Deploying Limine..."
+    echo "   -> Deploying and refreshing Limine..."
 
     if command -v limine-install &>/dev/null; then
         if [ -d /sys/firmware/efi ]; then
@@ -260,6 +261,12 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q limine &>/dev/null; then
         fi
     else
         echo "   -> limine-install not found. Skipping Limine deployment step."
+    fi
+
+    if command -v limine-update &>/dev/null; then
+        sudo limine-update
+    else
+        echo "   -> limine-update not found. Ensure limine.conf is present and updated manually."
     fi
 else
     echo "   -> Limine package not found or VM mode enabled. Skipping Limine deployment."
@@ -301,11 +308,20 @@ if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
         fi
     fi
 
-    echo "   -> Regenerating initramfs..."
-    sudo mkinitcpio -P
+    echo "   -> Regenerating initramfs and refreshing Limine entries..."
+    if command -v limine-mkinitcpio &>/dev/null; then
+        sudo limine-mkinitcpio
+    else
+        sudo mkinitcpio -P
+    fi
 
+    if command -v limine-update &>/dev/null; then
+        sudo limine-update
+    else
+        echo "   -> limine-update not found. Ensure limine.conf is updated for current kernels."
+    fi
 else
-    echo "   -> Skipping NVIDIA-specific mkinitcpio configuration."
+    echo "   -> Skipping NVIDIA-specific Limine and mkinitcpio configuration."
 fi
 
 # --- Configure PAM for GNOME Keyring ---
@@ -329,9 +345,9 @@ fi
 if ! grep -q "^session[[:space:]]\\+optional[[:space:]]\\+pam_gnome_keyring\\.so[[:space:]]\\+auto_start" "$PAM_LOGIN" 2>/dev/null; then
     echo "   -> Adding GNOME Keyring session PAM entry..."
     if grep -q "^session[[:space:]]\\+include[[:space:]]\\+system-local-login" "$PAM_LOGIN" 2>/dev/null; then
-        sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session      optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
+        sudo sed -i '/^session[[:space:]]\+include[[:space:]]\+system-local-login/a session     optional    pam_gnome_keyring.so auto_start' "$PAM_LOGIN"
     else
-        echo "session      optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
+        echo "session     optional    pam_gnome_keyring.so auto_start" | sudo tee -a "$PAM_LOGIN" > /dev/null
     fi
 fi
 
