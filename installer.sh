@@ -5,7 +5,6 @@ set -o pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 _SCRIPT_START=$SECONDS
 
-# ── ANSI ────────────────────────────────────────────────────────────────────────
 R="\033[0m"
 B="\033[1m"
 DIM="\033[2m"
@@ -16,7 +15,6 @@ BLUE="\033[38;5;110m"
 GRAY="\033[38;5;242m"
 WHITE="\033[38;5;252m"
 
-# ── Spinner ──────────────────────────────────────────────────────────────────────
 _SPINNER_PID=""
 _SPINNER_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 
@@ -42,7 +40,6 @@ spinner_stop() {
     fi
 }
 
-# ── Phase progress bar ────────────────────────────────────────────────────────────
 _TOTAL_PHASES=9
 _PHASE_NUM=1
 
@@ -58,7 +55,6 @@ _phasebar() {
     echo -e "  $bar ${GRAY}$current / $total${R}"
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────────
 _elapsed() {
     local s=$(( SECONDS - _SCRIPT_START ))
     printf "%dm%02ds" $(( s / 60 )) $(( s % 60 ))
@@ -98,7 +94,6 @@ die() {
     exit 1
 }
 
-# task "Description" [sudo] cmd [args...]
 task() {
     local desc="$1"; shift
     local use_sudo=false
@@ -133,21 +128,17 @@ task() {
     ok "$desc"
 }
 
-# ── Cleanup trap ─────────────────────────────────────────────────────────────────
 trap 'kill $(jobs -p) 2>/dev/null; exit' EXIT INT TERM
 
-# ── Banner ────────────────────────────────────────────────────────────────────────
 clear
 echo ""
 echo -e "  ${B}${WHITE}We are here to alleviate your suffer, but not thoroughly${R}"
 echo -e "  ${GRAY}Output is suppressed, errors will be shown${R}"
 echo ""
 
-# ── Preflight ─────────────────────────────────────────────────────────────────────
 [[ "$EUID" -eq 0 ]] && die "Do not run this script as root."
 [[ -d "$SCRIPT_DIR/dotfiles" ]] || die "dotfiles directory not found at $SCRIPT_DIR/dotfiles"
 
-# ── Sudo ──────────────────────────────────────────────────────────────────────────
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
 echo -e "  ${B}${WHITE}Privileges${R}"
 echo ""
@@ -157,7 +148,6 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 ok "Sudo active"
 echo ""
 
-# ── Environment ───────────────────────────────────────────────────────────────────
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
 echo -e "  ${B}${WHITE}Environment${R}"
 echo ""
@@ -182,7 +172,6 @@ case "$_choice" in
         ;;
 esac
 
-# ── Package lists ─────────────────────────────────────────────────────────────────
 pacman_packages_base=(
     hyprland hyprshot neovim tree-sitter tree-sitter-cli kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
@@ -216,13 +205,11 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     install_aur_packages+=("${aur_packages_bare_metal[@]}")
 fi
 
-# ── Phase 1 — System update ───────────────────────────────────────────────────────
 section "System update"
 task "Upgrading system packages ${DIM}(fetching latest OS updates, ~1-2m)${R}" sudo pacman -Syu --noconfirm
 task "Installing build dependencies ${DIM}(compilers & headers)${R}" sudo pacman -S --noconfirm --needed \
     git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
-# ── Phase 2 — Rust ───────────────────────────────────────────────────────────────
 section "Rust toolchain"
 
 if ! command -v rustup &>/dev/null; then
@@ -238,7 +225,6 @@ fi
 export PATH="$HOME/.cargo/bin:$PATH"
 task "Adding rust-analyzer component ${DIM}(for Neovim LSP)${R}" rustup component add rust-analyzer
 
-# ── Phase 3 — AUR helper ──────────────────────────────────────────────────────────
 section "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
@@ -250,14 +236,12 @@ else
 fi
 task "Syncing AUR databases" paru -Sy --noconfirm
 
-# ── Phase 4 — Packages ────────────────────────────────────────────────────────────
 section "Package installation"
 echo -e "  ${GRAY}pacman: ${#install_pacman_packages[@]} packages  ·  AUR: ${#install_aur_packages[@]} packages${R}"
 echo ""
 task "Installing official packages ${DIM}(~2-5m depending on network)${R}" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
 task "Installing AUR packages ${DIM}(compiling sources, ~5-10m)${R}" paru -S --noconfirm --needed "${install_aur_packages[@]}"
 
-# ── Phase 5 — Services & config ───────────────────────────────────────────────────
 section "Services & system config"
 task "Enabling NetworkManager" sudo systemctl enable --now NetworkManager.service
 
@@ -312,7 +296,6 @@ else
 fi
 ok "Git credential helper set"
 
-# ── Phase 6 — Limine Installation ─────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     section "Limine Installation" "bare-metal only"
     
@@ -328,38 +311,37 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     task "Deploying Limine EFI to UEFI fallback path" sudo bash -c "mkdir -p \"$ESP/EFI/BOOT\" && cp /usr/share/limine/BOOTX64.EFI \"$ESP/EFI/BOOT/BOOTX64.EFI\""
 
     if [[ ! -f "$ESP/limine.conf" ]]; then
-        step "Creating base limine.conf with snapshot support..."
-        printf "timeout: 5\n//Snapshots\n" | sudo tee "$ESP/limine.conf" >/dev/null
+        step "Creating base limine.conf..."
+        printf "timeout: 5\n" | sudo tee "$ESP/limine.conf" >/dev/null
         ok "Base limine.conf created"
     else
-        if ! grep -q "//Snapshots" "$ESP/limine.conf"; then
-            echo "//Snapshots" | sudo tee -a "$ESP/limine.conf" >/dev/null
-            ok "Appended //Snapshots marker to existing limine.conf"
-        else
-            ok "limine.conf already configured for snapshots"
-        fi
+        ok "limine.conf already exists"
     fi
 fi
 
-# ── Phase 7 — NVIDIA & mkinitcpio ─────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     section "NVIDIA & Kernel Config" "bare-metal only"
     _ts=$(date +%Y%m%d%H%M%S)
 
+    _root_uuid=$(findmnt / -n -o UUID)
+    _root_sv=$(findmnt / -v -n -o FSROOT)
+    _root_cmdline="root=UUID=${_root_uuid} rw rootflags=subvol=${_root_sv}"
+
     if pacman -Q nvidia-dkms &>/dev/null; then
         if [[ -f /etc/kernel/cmdline ]]; then
-            step "Patching kernel cmdline... ${DIM}(adding DRM modeset)${R}"
+            step "Patching kernel cmdline... ${DIM}(adding DRM modeset and Btrfs flags)${R}"
             sudo cp /etc/kernel/cmdline "/etc/kernel/cmdline.backup.$_ts"
             grep -Eq 'nvidia-drm\.modeset=1' /etc/kernel/cmdline \
                 || sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
             grep -Eq 'modprobe\.blacklist=nouveau' /etc/kernel/cmdline \
                 || sudo sed -i 's/$/ modprobe.blacklist=nouveau/' /etc/kernel/cmdline
+            grep -Eq 'root=UUID' /etc/kernel/cmdline \
+                || sudo sed -i "s/$/ ${_root_cmdline}/" /etc/kernel/cmdline
             ok "Kernel cmdline patched"
         else
             step "Creating new kernel cmdline..."
-            echo "nvidia-drm.modeset=1 modprobe.blacklist=nouveau" | sudo tee /etc/kernel/cmdline >/dev/null
-            ok "Kernel cmdline created with NVIDIA flags"
-            warn "ACTION REQUIRED" "Created /etc/kernel/cmdline, but you MUST manually add your root=... parameter before rebooting!"
+            echo "nvidia-drm.modeset=1 modprobe.blacklist=nouveau ${_root_cmdline}" | sudo tee /etc/kernel/cmdline >/dev/null
+            ok "Kernel cmdline created with NVIDIA and root flags"
         fi
     fi
 
@@ -367,7 +349,6 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
         step "Patching mkinitcpio modules & hooks... ${DIM}(injecting early KMS and Btrfs overlay)${R}"
         sudo cp /etc/mkinitcpio.conf "/etc/mkinitcpio.conf.backup.$_ts"
         
-        # Inject NVIDIA modules
         if pacman -Q nvidia-dkms &>/dev/null && grep -q '^MODULES=' /etc/mkinitcpio.conf; then
             for _mod in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
                 grep -Eq "^MODULES=.*\b${_mod}\b" /etc/mkinitcpio.conf && continue
@@ -376,7 +357,6 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
             done
         fi
         
-        # Inject Snapper btrfs-overlayfs hook
         if grep -q '^HOOKS=' /etc/mkinitcpio.conf; then
             if ! grep -Eq '\bbtrfs-overlayfs\b' /etc/mkinitcpio.conf; then
                 sudo sed -i 's/\(filesystems\)/\1 btrfs-overlayfs/' /etc/mkinitcpio.conf
@@ -387,6 +367,11 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
 
     if command -v limine-mkinitcpio &>/dev/null; then
         task "Regenerating initramfs ${DIM}(~30s)${R}" sudo limine-mkinitcpio
+        
+        if ! grep -q "//Snapshots" "$ESP/limine.conf" 2>/dev/null; then
+            echo -e "\n//Snapshots" | sudo tee -a "$ESP/limine.conf" >/dev/null
+            ok "Appended //Snapshots submenu marker to limine.conf"
+        fi
     else
         task "Regenerating initramfs ${DIM}(~30s)${R}" sudo mkinitcpio -P
     fi
@@ -396,18 +381,15 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     fi
 fi
 
-# ── Phase 8 — Snapper ────────────────────────────────────────────────────────────
 if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     if [[ "$(stat -c %T /)" == "btrfs" ]]; then
         section "Btrfs snapshots — Snapper" "bare-metal only"
 
-        # ── Discover mounted Btrfs subvolumes ─────────────────────────────────
         step "Detecting mounted Btrfs subvolumes..."
-        declare -A _subvol_map  # mountpoint → subvolume name
+        declare -A _subvol_map
         while IFS= read -r line; do
             local_mp=$(echo "$line" | awk '{print $1}')
             local_sv=$(echo "$line" | awk '{print $2}')
-            # skip the top-level subvol (id 5 / path /)
             [[ "$local_sv" == "/" ]] && continue
             _subvol_map["$local_mp"]="$local_sv"
         done < <(findmnt -n -r -t btrfs -o TARGET,SOURCE \
@@ -425,8 +407,6 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
             echo ""
         fi
 
-        # ── Subvolumes that should NOT get their own snapper config ───────────
-        # Snapshots dirs, efi, boot, swap are not useful to snapshot
         _skip_patterns=('*.snapshots*' '*/efi*' '*/boot*' '*swap*' '*tmp*')
 
         _snapper_configs=()
@@ -435,26 +415,32 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
             _sv="${_subvol_map[$_mp]}"
             _skip=false
             for _pat in "${_skip_patterns[@]}"; do
-                # shellcheck disable=SC2254
                 case "$_mp" in $_pat) _skip=true; break;; esac
             done
             [[ "$_skip" == "true" ]] && { skip "Skipping snapper config for $_sv ($_mp)"; continue; }
 
-            # Derive a short config name from the subvolume (strip leading @)
-            _cfg_name="${_sv##*/}"           # last path component
-            _cfg_name="${_cfg_name#@}"       # strip leading @
-            _cfg_name="${_cfg_name:-root}"   # fallback to "root" for bare "@"
-            _cfg_name="${_cfg_name//_/-}"    # underscores → hyphens
+            _cfg_name="${_sv##*/}"
+            _cfg_name="${_cfg_name#@}"
+            _cfg_name="${_cfg_name:-root}"
+            _cfg_name="${_cfg_name//_/-}"
 
             if [[ ! -f "/etc/snapper/configs/$_cfg_name" ]]; then
-                task "Creating snapper config '$_cfg_name' ${DIM}($_sv → $_mp)${R}" \
-                    sudo snapper -c "$_cfg_name" create-config "$_mp"
+                if [[ "$_mp" == "/" && -d "/.snapshots" ]]; then
+                    sudo umount /.snapshots 2>/dev/null || true
+                    sudo rm -rf /.snapshots
+                    task "Creating snapper config '$_cfg_name' ${DIM}(with mount workaround)${R}" \
+                        sudo snapper -c "$_cfg_name" create-config "$_mp"
+                    sudo btrfs subvolume delete /.snapshots 2>/dev/null || true
+                    sudo mkdir /.snapshots
+                    sudo mount -a
+                else
+                    task "Creating snapper config '$_cfg_name' ${DIM}($_sv → $_mp)${R}" \
+                        sudo snapper -c "$_cfg_name" create-config "$_mp"
+                fi
             else
                 ok "Snapper config '$_cfg_name' already exists"
             fi
 
-            # ── Per-config timeline & cleanup tuning ──────────────────────────
-            # root/@  gets generous limits; secondary subvols get tighter ones
             if [[ "$_cfg_name" == "root" ]] || [[ "$_mp" == "/" ]]; then
                 _hourly=5; _daily=7; _weekly=2; _monthly=2; _yearly=0
             else
@@ -482,7 +468,6 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
             _snapper_configs+=("$_cfg_name")
         done
 
-        # ── Fix .snapshots permissions so non-root can list snapshots ─────────
         for _cfg in "${_snapper_configs[@]}"; do
             _cfg_mp=$(snapper -c "$_cfg" get-config 2>/dev/null | awk '/^SUBVOLUME/{print $3}')
             if [[ -d "${_cfg_mp}/.snapshots" ]]; then
@@ -492,19 +477,22 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
         done
         ok ".snapshots permissions set"
 
-        # ── Enable timers ─────────────────────────────────────────────────────
         task "Enabling snapshot timers ${DIM}(timeline + cleanup)${R}" \
             sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
 
-        # snap-pac triggers a pre/post snapshot around every pacman transaction
         if pacman -Q snap-pac &>/dev/null; then
             ok "snap-pac installed — pacman transactions will be snapshotted automatically"
         else
             skip "snap-pac (not installed — pacman hooks won't trigger snapshots)"
         fi
 
-        # ── Limine snapshot sync ───────────────────────────────────────────────
         if command -v limine-snapper-sync &>/dev/null; then
+            step "Configuring Limine snapshot sync paths and limits..."
+            
+            _snap_sv=$(findmnt /.snapshots -v -n -o FSROOT 2>/dev/null || echo "/@snapshots")
+            
+            printf "# Injected by installer\nMAX_SNAPSHOT_ENTRIES=3\nROOT_SNAPSHOTS_PATH=\"%s\"\nESP_PATH=\"%s\"\n" "$_snap_sv" "$ESP" | sudo tee -a /etc/default/limine >/dev/null
+            
             task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" \
                 sudo systemctl enable --now limine-snapper-sync.service
         else
@@ -516,7 +504,6 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     fi
 fi
 
-# ── Phase 9 — User environment ────────────────────────────────────────────────────
 section "User environment"
 
 step "Initializing XDG user directories..."
@@ -535,7 +522,7 @@ step "Applying GTK theme... ${DIM}(Yaru-Grey-dark & Papirus)${R}"
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-# Write GTK3 and GTK4 settings explicitly for Wayland/Hyprland (gsettings may not persist)
+
 mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0
 cat > ~/.config/gtk-3.0/settings.ini <<'EOF'
 [Settings]
@@ -573,7 +560,6 @@ step "Initializing locate database..."
 sudo updatedb
 ok "locate database built"
 
-# ── Done ──────────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
 echo ""
