@@ -232,8 +232,8 @@ task "Adding rust-analyzer component ${DIM}(for Neovim LSP)${R}" rustup componen
 section 3 "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
-    task "Cloning paru-bin from AUR ${DIM}(pre-compiled binary)${R}" git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp"
-    task "Building and installing paru ${DIM}(~30s)${R}" bash -c "cd '$_tmp' && makepkg -si --noconfirm"
+    task "Cloning paru from AUR ${DIM}(pre-compiled binary)${R}" git clone "https://aur.archlinux.org/paru.git" "$_tmp"
+    task "Building and installing paru ${DIM}(~30s)${R}" bash -c "cd '$_tmp' && makepkg -si"
     rm -rf "$_tmp"
 else
     ok "paru already installed"
