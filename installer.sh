@@ -25,7 +25,7 @@ spinner_start() {
     (
         local i=0
         while true; do
-            printf "\r  \033[38;5;110m${_SPINNER_FRAMES[$i]}\033[0m  %s " "$msg"
+            printf "\r  \033[38;5;110m${_SPINNER_FRAMES[$i]}\033[0m  %b " "$msg"
             i=$(( (i+1) % 10 ))
             sleep 0.08
         done
@@ -208,8 +208,8 @@ fi
 
 # ── Phase 1 — System update ───────────────────────────────────────────────────────
 section 1 "System update"
-task "Upgrading system packages" sudo pacman -Syu --noconfirm
-task "Installing build dependencies" sudo pacman -S --noconfirm --needed \
+task "Upgrading system packages ${DIM}(fetching latest OS updates, ~1-2m)${R}" sudo pacman -Syu --noconfirm
+task "Installing build dependencies ${DIM}(compilers & headers)${R}" sudo pacman -S --noconfirm --needed \
     git base-devel linux linux-headers linux-lts linux-lts-headers mkinitcpio openssh systemd-resolvconf
 
 # ── Phase 2 — Rust ───────────────────────────────────────────────────────────────
@@ -219,23 +219,21 @@ if ! command -v rustup &>/dev/null; then
     step "Fetching official rustup installer..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup-init.sh
     chmod +x /tmp/rustup-init.sh
-    task "Installing Rust via rustup" /tmp/rustup-init.sh -y --no-modify-path --profile default --default-toolchain stable
+    task "Installing Rust via rustup ${DIM}(required for paru, ~30s)${R}" /tmp/rustup-init.sh -y --no-modify-path --profile default --default-toolchain stable
     rm -f /tmp/rustup-init.sh
 else
     ok "rustup already installed"
 fi
 
-# Export PATH so cargo is available immediately for the rest of the script
 export PATH="$HOME/.cargo/bin:$PATH"
-
-task "Adding rust-analyzer component" rustup component add rust-analyzer
+task "Adding rust-analyzer component ${DIM}(for Neovim LSP)${R}" rustup component add rust-analyzer
 
 # ── Phase 3 — AUR helper ──────────────────────────────────────────────────────────
 section 3 "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
-    task "Cloning paru-bin from AUR" git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp"
-    task "Building and installing paru" bash -c "cd '$_tmp' && makepkg -si --noconfirm"
+    task "Cloning paru-bin from AUR ${DIM}(pre-compiled binary)${R}" git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp"
+    task "Building and installing paru ${DIM}(~30s)${R}" bash -c "cd '$_tmp' && makepkg -si --noconfirm"
     rm -rf "$_tmp"
 else
     ok "paru already installed"
@@ -246,8 +244,8 @@ task "Syncing AUR databases" paru -Sy --noconfirm
 section 4 "Package installation"
 echo -e "  ${GRAY}pacman: ${#install_pacman_packages[@]} packages  ·  AUR: ${#install_aur_packages[@]} packages${R}"
 echo ""
-task "Installing official packages (${#install_pacman_packages[@]})" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
-task "Installing AUR packages (${#install_aur_packages[@]})" paru -S --noconfirm --needed "${install_aur_packages[@]}"
+task "Installing official packages ${DIM}(~2-5m depending on network)${R}" sudo pacman -S --noconfirm --needed "${install_pacman_packages[@]}"
+task "Installing AUR packages ${DIM}(compiling sources, ~5-10m)${R}" paru -S --noconfirm --needed "${install_aur_packages[@]}"
 
 # ── Phase 5 — Services & config ───────────────────────────────────────────────────
 section 5 "Services & system config"
@@ -265,12 +263,12 @@ else
     skip "CoolerControl"
 fi
 
-task "Enabling Docker" sudo systemctl enable --now docker
+task "Enabling Docker ${DIM}(adds user to docker group)${R}" sudo systemctl enable --now docker
 sudo usermod -aG docker "$USER" &>/dev/null
 warn "docker group" "Log out and back in for Docker access to take effect."
 
 if pacman -Q libvirt &>/dev/null; then
-    task "Enabling Libvirt" sudo systemctl enable --now libvirtd.service
+    task "Enabling Libvirt ${DIM}(for KVM/QEMU)${R}" sudo systemctl enable --now libvirtd.service
     sudo usermod -aG libvirt "$USER" &>/dev/null
     warn "libvirt group" "Log out and back in for KVM/QEMU access to take effect."
 else
@@ -306,7 +304,7 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
     _ts=$(date +%Y%m%d%H%M%S)
 
     if [[ -f /etc/kernel/cmdline ]]; then
-        step "Patching kernel cmdline..."
+        step "Patching kernel cmdline... ${DIM}(adding DRM modeset)${R}"
         sudo cp /etc/kernel/cmdline "/etc/kernel/cmdline.backup.$_ts"
         grep -Eq 'nvidia-drm\.modeset=1' /etc/kernel/cmdline \
             || sudo sed -i 's/$/ nvidia-drm.modeset=1/' /etc/kernel/cmdline
@@ -321,7 +319,7 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
     fi
 
     if [[ -f /etc/mkinitcpio.conf ]]; then
-        step "Patching mkinitcpio modules..."
+        step "Patching mkinitcpio modules... ${DIM}(injecting early KMS modules)${R}"
         sudo cp /etc/mkinitcpio.conf "/etc/mkinitcpio.conf.backup.$_ts"
         if grep -q '^MODULES=' /etc/mkinitcpio.conf; then
             for _mod in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
@@ -334,9 +332,9 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && pacman -Q nvidia-dkms &>/dev/null; then
     fi
 
     if command -v limine-mkinitcpio &>/dev/null; then
-        task "Regenerating initramfs" sudo limine-mkinitcpio
+        task "Regenerating initramfs ${DIM}(~30s)${R}" sudo limine-mkinitcpio
     else
-        task "Regenerating initramfs" sudo mkinitcpio -P
+        task "Regenerating initramfs ${DIM}(~30s)${R}" sudo mkinitcpio -P
     fi
 
     if command -v limine-update &>/dev/null; then
@@ -355,15 +353,15 @@ if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; the
     section 7 "Btrfs snapshots — Snapper" "bare-metal only"
 
     if [[ ! -f /etc/snapper/configs/root ]]; then
-        task "Creating Snapper root config" sudo snapper -c root create-config /
+        task "Creating Snapper root config ${DIM}(initializes Btrfs layout)${R}" sudo snapper -c root create-config /
     else
         ok "Snapper config already exists"
     fi
 
-    task "Enabling snapshot timers" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+    task "Enabling snapshot timers ${DIM}(automatic background snapshots)${R}" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
 
     if command -v limine-snapper-sync &>/dev/null; then
-        task "Enabling Limine snapshot sync" sudo systemctl enable --now limine-snapper-sync.service
+        task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" sudo systemctl enable --now limine-snapper-sync.service
     else
         skip "limine-snapper-sync (not installed)"
     fi
@@ -374,7 +372,7 @@ fi
 # ── Phase 8 — User environment ────────────────────────────────────────────────────
 section 8 "User environment"
 
-step "Deploying dotfiles..."
+step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles
 rm -rf ~/.config/fish ~/.config/hypr
@@ -382,7 +380,7 @@ rm -rf ~/.config/fish ~/.config/hypr
     || die "stow failed — check for pre-existing config conflicts"
 ok "Dotfiles applied via stow"
 
-step "Applying GTK theme..."
+step "Applying GTK theme... ${DIM}(Yaru-Grey-dark & Papirus)${R}"
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
