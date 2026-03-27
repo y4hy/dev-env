@@ -234,17 +234,13 @@ task "Adding rust-analyzer component" rustup component add rust-analyzer
 section 3 "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
-    spinner_start "Cloning paru-bin from AUR"
-    git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp" -q 2>/dev/null
-    spinner_stop; ok "Repository cloned"
-    spinner_start "Building and installing paru"
-    (cd "$_tmp" && makepkg -si --noconfirm -q 2>/dev/null) || die "paru build failed"
-    spinner_stop; ok "paru installed"
+    task "Cloning paru-bin from AUR" git clone "https://aur.archlinux.org/paru-bin.git" "$_tmp"
+    task "Building and installing paru" bash -c "cd '$_tmp' && makepkg -si --noconfirm"
     rm -rf "$_tmp"
 else
     ok "paru already installed"
 fi
-task "Syncing AUR databases" paru -Syu --noconfirm -q
+task "Syncing AUR databases" paru -Sy --noconfirm
 
 # ── Phase 4 — Packages ────────────────────────────────────────────────────────────
 section 4 "Package installation"
@@ -395,9 +391,7 @@ ok "Theme: Yaru-Grey-dark  ·  Icons: Papirus-Dark"
 step "Setting up Tmux Plugin Manager..."
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if [[ ! -d "$TPM_DIR" ]]; then
-    spinner_start "Cloning TPM"
-    git clone https://github.com/tmux-plugins/tpm "$TPM_DIR" -q
-    spinner_stop
+    task "Cloning TPM" git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
 fi
 "$TPM_DIR/bin/install_plugins" &>/dev/null
 ok "Tmux plugins installed"
