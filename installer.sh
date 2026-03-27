@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 _SCRIPT_START=$SECONDS
@@ -37,7 +37,6 @@ spinner_start() {
 spinner_stop() {
     if [[ -n "$_SPINNER_PID" ]]; then
         kill "$_SPINNER_PID" 2>/dev/null
-        wait "$_SPINNER_PID" 2>/dev/null || true
         _SPINNER_PID=""
         printf "\r\033[2K"
     fi
@@ -109,11 +108,15 @@ task() {
     local tmp rc=0
     tmp=$(mktemp)
 
+    set +e
     if $use_sudo; then
-        sudo "$@" >"$tmp" 2>&1 || rc=$?
+        sudo "$@" >"$tmp" 2>&1
+        rc=$?
     else
-        "$@" >"$tmp" 2>&1 || rc=$?
+        "$@" >"$tmp" 2>&1
+        rc=$?
     fi
+    set -o pipefail
 
     spinner_stop
 
@@ -130,6 +133,9 @@ task() {
     ok "$desc"
 }
 
+# ── Cleanup trap ─────────────────────────────────────────────────────────────────
+trap 'kill $(jobs -p) 2>/dev/null; exit' EXIT INT TERM
+
 # ── Banner ────────────────────────────────────────────────────────────────────────
 clear
 echo ""
@@ -139,6 +145,7 @@ echo ""
 
 # ── Preflight ─────────────────────────────────────────────────────────────────────
 [[ "$EUID" -eq 0 ]] && die "Do not run this script as root."
+[[ -d "$SCRIPT_DIR/dotfiles" ]] || die "dotfiles directory not found at $SCRIPT_DIR/dotfiles"
 
 # ── Sudo ──────────────────────────────────────────────────────────────────────────
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
@@ -179,9 +186,9 @@ esac
 pacman_packages_base=(
     hyprland hyprshot neovim tree-sitter tree-sitter-cli kitty fish rofi awww dunst stow wl-clipboard lxqt-sudo less
     imv libreoffice-fresh papirus-icon-theme nwg-look polkit-kde-agent xdg-desktop-portal-hyprland
-    zathura tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
+    zathura zathura-pdf-mupdf tmux nemo file-roller nemo-terminal ffmpegthumbnailer poppler-glib xdg-utils zip unzip
     btop locate fuse3 syncthing gnome-calculator openvpn libnotify curl bat proton-vpn-gtk-app
-    networkmanager vlc playerctl brightnessctl cliphist
+    networkmanager vlc playerctl brightnessctl cliphist xdg-user-dirs
     pipewire pipewire-jack pipewire-alsa pipewire-pulse wireplumber
     ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji ttf-nerd-fonts-symbols
     nodejs npm docker docker-compose python-pip
@@ -195,7 +202,7 @@ pacman_packages_bare_metal=(
     snapper snap-pac limine efibootmgr b3sum inotify-tools
 )
 aur_packages_base=(
-    zen-browser-bin obsidian opencode-bin yaru-colors-gtk-theme neofetch
+    zen-browser-bin obsidian opencode-bin yaru-colors-gtk-theme fastfetch
     rofi-bluetooth-git ttf-0xproto-nerd
 )
 aur_packages_bare_metal=(
@@ -236,7 +243,7 @@ section "AUR helper — paru"
 if ! command -v paru &>/dev/null; then
     _tmp=$(mktemp -d)
     task "Cloning paru from AUR ${DIM}(pre-compiled binary)${R}" git clone "https://aur.archlinux.org/paru.git" "$_tmp"
-    task "Building and installing paru ${DIM}(~30s)${R}" bash -c "cd '$_tmp' && makepkg -si"
+    task "Building and installing paru ${DIM}(~30s)${R}" bash -c "cd '$_tmp' && makepkg -si --noconfirm"
     rm -rf "$_tmp"
 else
     ok "paru already installed"
@@ -267,12 +274,12 @@ else
 fi
 
 task "Enabling Docker ${DIM}(adds user to docker group)${R}" sudo systemctl enable --now docker
-sudo usermod -aG docker "$USER" &>/dev/null
+task "Adding $USER to docker group" sudo usermod -aG docker "$USER"
 warn "docker group" "Log out and back in for Docker access to take effect."
 
 if pacman -Q libvirt &>/dev/null; then
     task "Enabling Libvirt ${DIM}(for KVM/QEMU)${R}" sudo systemctl enable --now libvirtd.service
-    sudo usermod -aG libvirt "$USER" &>/dev/null
+    task "Adding $USER to libvirt group" sudo usermod -aG libvirt "$USER"
     warn "libvirt group" "Log out and back in for KVM/QEMU access to take effect."
 else
     skip "Libvirt"
@@ -298,7 +305,11 @@ fi
 ok "GNOME Keyring configured"
 
 step "Configuring Git credential helper..."
-git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
+if command -v git-credential-libsecret &>/dev/null; then
+    git config --global credential.helper "$(command -v git-credential-libsecret)"
+else
+    git config --global credential.helper libsecret
+fi
 ok "Git credential helper set"
 
 # ── Phase 6 — Limine Installation ─────────────────────────────────────────────────
@@ -386,32 +397,40 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
 fi
 
 # ── Phase 8 — Snapper ────────────────────────────────────────────────────────────
-if [[ "$INSTALL_FOR_VM" == "false" ]] && [[ "$(stat -c %T /)" == "btrfs" ]]; then
-    section "Btrfs snapshots — Snapper" "bare-metal only"
+if [[ "$INSTALL_FOR_VM" == "false" ]]; then
+    if [[ "$(stat -c %T /)" == "btrfs" ]]; then
+        section "Btrfs snapshots — Snapper" "bare-metal only"
 
-    if [[ ! -f /etc/snapper/configs/root ]]; then
-        task "Creating Snapper root config ${DIM}(initializes Btrfs layout)${R}" sudo snapper -c root create-config /
+        if [[ ! -f /etc/snapper/configs/root ]]; then
+            task "Creating Snapper root config ${DIM}(initializes Btrfs layout)${R}" sudo snapper -c root create-config /
+        else
+            ok "Snapper config already exists"
+        fi
+
+        task "Enabling snapshot timers ${DIM}(automatic background snapshots)${R}" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+
+        if command -v limine-snapper-sync &>/dev/null; then
+            task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" sudo systemctl enable --now limine-snapper-sync.service
+        else
+            skip "limine-snapper-sync (not installed)"
+        fi
     else
-        ok "Snapper config already exists"
-    fi
-
-    task "Enabling snapshot timers ${DIM}(automatic background snapshots)${R}" sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
-
-    if command -v limine-snapper-sync &>/dev/null; then
-        task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" sudo systemctl enable --now limine-snapper-sync.service
-    else
-        skip "limine-snapper-sync (not installed)"
+        skip "Btrfs snapshots — Snapper (root filesystem is not Btrfs)"
     fi
 fi
 
 # ── Phase 9 — User environment ────────────────────────────────────────────────────
 section "User environment"
 
+step "Initializing XDG user directories..."
+xdg-user-dirs-update
+ok "XDG user directories created"
+
 step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles 2>/dev/null || true
 rm -rf ~/.config/fish ~/.config/hypr
-(cd ~/.dotfiles && stow fish kitty nvim rofi wp neofetch dunst hyprland opencode tmux) \
+(cd ~/.dotfiles && stow fish kitty nvim rofi wp fastfetch dunst hyprland opencode tmux) \
     || die "stow failed — check for pre-existing config conflicts"
 ok "Dotfiles applied via stow"
 
@@ -419,6 +438,20 @@ step "Applying GTK theme... ${DIM}(Yaru-Grey-dark & Papirus)${R}"
 gsettings set org.gnome.desktop.interface gtk-theme 'Yaru-Grey-dark'
 gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+# Write GTK3 and GTK4 settings explicitly for Wayland/Hyprland (gsettings may not persist)
+mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0
+cat > ~/.config/gtk-3.0/settings.ini <<'EOF'
+[Settings]
+gtk-theme-name=Yaru-Grey-dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-application-prefer-dark-theme=true
+EOF
+cat > ~/.config/gtk-4.0/settings.ini <<'EOF'
+[Settings]
+gtk-theme-name=Yaru-Grey-dark
+gtk-icon-theme-name=Papirus-Dark
+gtk-application-prefer-dark-theme=true
+EOF
 ok "Theme: Yaru-Grey-dark  ·  Icons: Papirus-Dark"
 
 step "Setting up Tmux Plugin Manager..."
@@ -439,6 +472,10 @@ step "Setting Nemo as default file manager..."
 xdg-mime default nemo.desktop inode/directory application/x-gnome-saved-search &>/dev/null
 ok "Nemo set as default"
 
+step "Initializing locate database..."
+sudo updatedb
+ok "locate database built"
+
 # ── Done ──────────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
@@ -448,6 +485,9 @@ echo ""
 echo -e "  ${GRAY}Next steps:${R}"
 echo -e "  ${BLUE}·${R}  Log out and back in  ${GRAY}→ apply docker / libvirt group changes${R}"
 echo -e "  ${BLUE}·${R}  Reboot               ${GRAY}→ apply kernel, driver, and shell changes${R}"
+if pacman -Q opencode-bin &>/dev/null; then
+    echo -e "  ${BLUE}·${R}  Configure OpenCode   ${GRAY}→ add your API keys before first use${R}"
+fi
 echo ""
 echo -e "  ${GRAY}──────────────────────────────────────────────────────${R}"
 echo ""
