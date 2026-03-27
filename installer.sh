@@ -148,7 +148,6 @@ aur_packages_base=(
     obsidian
     opencode-bin
     yaru-colors-gtk-theme
-    bibata-cursor-theme
     neofetch
     rofi-bluetooth-git
     ttf-0xproto-nerd
