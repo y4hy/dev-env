@@ -329,11 +329,7 @@ fi
 
 # --- Configure Git to use libsecret ---
 echo "   -> Configuring Git credential helper..."
-if credential_helper_path="$(command -v git-credential-libsecret)"; then
-    git config --global credential.helper "$credential_helper_path"
-else
-    echo "   -> git-credential-libsecret not found. Skipping Git credential helper setup."
-fi
+git config --global credential.helper /usr/lib/git-core/git-credential-libsecret
 
 
 #-------------------------------------------------------------------------------
