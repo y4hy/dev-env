@@ -248,30 +248,6 @@ else
     echo "-> Skipping Snapper setup (Not a bare-metal Btrfs system)."
 fi
 
-# --- Deploy and refresh Limine bootloader entries ---
-if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q limine &>/dev/null; then
-    echo "   -> Deploying and refreshing Limine..."
-
-    if command -v limine-install &>/dev/null; then
-        if [ -d /sys/firmware/efi ]; then
-            sudo limine-install --fallback || sudo limine-install
-        else
-            echo "   -> BIOS mode detected. limine-install may need manual target disk selection."
-            echo "   -> Skipping automatic BIOS deployment in this script to avoid writing to the wrong disk."
-        fi
-    else
-        echo "   -> limine-install not found. Skipping Limine deployment step."
-    fi
-
-    if command -v limine-update &>/dev/null; then
-        sudo limine-update
-    else
-        echo "   -> limine-update not found. Ensure limine.conf is present and updated manually."
-    fi
-else
-    echo "   -> Limine package not found or VM mode enabled. Skipping Limine deployment."
-fi
-
 # --- Configure Limine and mkinitcpio for NVIDIA ---
 if [ "$INSTALL_FOR_VM" = "false" ] && pacman -Q nvidia-dkms &>/dev/null; then
     echo "   -> Configuring Limine kernel parameters and mkinitcpio for NVIDIA..."
