@@ -348,7 +348,7 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     if [[ -f /etc/mkinitcpio.conf ]]; then
         step "Patching mkinitcpio modules & hooks... ${DIM}(injecting early KMS and Btrfs overlay)${R}"
         sudo cp /etc/mkinitcpio.conf "/etc/mkinitcpio.conf.backup.$_ts"
-        
+
         if pacman -Q nvidia-dkms &>/dev/null && grep -q '^MODULES=' /etc/mkinitcpio.conf; then
             for _mod in nvidia nvidia_modeset nvidia_uvm nvidia_drm; do
                 grep -Eq "^MODULES=.*\b${_mod}\b" /etc/mkinitcpio.conf && continue
