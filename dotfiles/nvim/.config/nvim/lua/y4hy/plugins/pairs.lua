@@ -20,7 +20,10 @@ return {
         autopairs.add_rules({
             Rule("<", ">", "rust")
                 :with_pair(cond.before_regex("[%w_:]+%s*$"))
-                :with_move(function(opts) return opts.char == ">" end)
+                :with_move(function(opts) return opts.char == ">" end),
+
+            Rule("'", "'", "rust")
+                :with_pair(cond.before_regex("[bc]$"))
         })
 
         local cmp_autopairs = require("nvim-autopairs.completion.cmp")
