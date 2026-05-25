@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -o pipefail
+set -eo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 _SCRIPT_START=$SECONDS
@@ -21,7 +21,7 @@ _SPINNER_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
 spinner_start() {
     local msg="$1"
     (
-        local i=0
+        i=0
         while true; do
             printf "\r  \033[38;5;110m${_SPINNER_FRAMES[$i]}\033[0m  %b " "$msg"
             i=$(( (i+1) % 10 ))
@@ -33,8 +33,8 @@ spinner_start() {
 }
 
 spinner_stop() {
-    if [[ -n "$_SPINNER_PID" ]]; then
-        kill "$_SPINNER_PID" 2>/dev/null
+    if [[ -n "${_SPINNER_PID:-}" ]]; then
+        kill "$_SPINNER_PID" 2>/dev/null || true
         _SPINNER_PID=""
         printf "\r\033[2K"
     fi
@@ -49,8 +49,10 @@ _phasebar() {
     local empty=$(( 24 - filled ))
     local bar
     bar="${BLUE}["
-    bar+="$(printf '█%.0s' $(seq 1 $filled) 2>/dev/null)"
-    bar+="${GRAY}$(printf '░%.0s' $(seq 1 $empty) 2>/dev/null)"
+    local i
+    for (( i=0; i<filled; i++ )); do bar+="█"; done
+    bar+="${GRAY}"
+    for (( i=0; i<empty;  i++ )); do bar+="░"; done
     bar+="${BLUE}]${R}"
     echo -e "  $bar ${GRAY}$current / $total${R}"
 }
@@ -111,7 +113,7 @@ task() {
         "$@" >"$tmp" 2>&1
         rc=$?
     fi
-    set -o pipefail
+    set -e
 
     spinner_stop
 
@@ -128,7 +130,7 @@ task() {
     ok "$desc"
 }
 
-trap 'kill $(jobs -p) 2>/dev/null; exit' EXIT INT TERM
+trap 'spinner_stop; kill $(jobs -p) 2>/dev/null; exit' EXIT INT TERM
 
 clear
 echo ""
@@ -159,6 +161,7 @@ echo -e "       ${GRAY}Skips all hardware-specific packages and services${R}"
 echo ""
 read -rp "  › Choice [1/2]: " _choice
 echo ""
+
 case "$_choice" in
     2)
         INSTALL_FOR_VM="true"
@@ -298,7 +301,7 @@ ok "Git credential helper set"
 
 if [[ "$INSTALL_FOR_VM" == "false" ]]; then
     section "Limine Installation" "bare-metal only"
-    
+
     step "Detecting EFI System Partition (ESP)..."
     ESP=$(findmnt -n -r -o TARGET -t vfat | grep -E '^/boot|^/efi' | head -n 1)
     if [[ -z "$ESP" ]]; then
@@ -356,7 +359,7 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
                 sudo sed -i 's/^MODULES=( /MODULES=(/' /etc/mkinitcpio.conf
             done
         fi
-        
+
         if grep -q '^HOOKS=' /etc/mkinitcpio.conf; then
             if ! grep -Eq '\bbtrfs-overlayfs\b' /etc/mkinitcpio.conf; then
                 sudo sed -i 's/\(filesystems\)/\1 btrfs-overlayfs/' /etc/mkinitcpio.conf
@@ -367,7 +370,7 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
 
     if command -v limine-mkinitcpio &>/dev/null; then
         task "Regenerating initramfs ${DIM}(~30s)${R}" sudo limine-mkinitcpio
-        
+
         if ! grep -q "//Snapshots" "$ESP/limine.conf" 2>/dev/null; then
             echo -e "\n//Snapshots" | sudo tee -a "$ESP/limine.conf" >/dev/null
             ok "Appended //Snapshots submenu marker to limine.conf"
@@ -386,15 +389,12 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
         section "Btrfs snapshots — Snapper" "bare-metal only"
 
         step "Detecting mounted Btrfs subvolumes..."
+
         declare -A _subvol_map
-        while IFS= read -r line; do
-            local_mp=$(echo "$line" | awk '{print $1}')
-            local_sv=$(echo "$line" | awk '{print $2}')
-            [[ "$local_sv" == "/" ]] && continue
-            _subvol_map["$local_mp"]="$local_sv"
-        done < <(findmnt -n -r -t btrfs -o TARGET,SOURCE \
-                 | sed 's|.*\[||;s|\]||' \
-                 | awk '{mp=$1; sv=$2; if (sv != "") print mp, sv}')
+        while IFS=$'\t' read -r mp fsroot; do
+            [[ -z "$mp" || -z "$fsroot" || "$fsroot" == "/" ]] && continue
+            _subvol_map["$mp"]="$fsroot"
+        done < <(findmnt -n -r -t btrfs -o TARGET,FSROOT)
 
         if [[ ${#_subvol_map[@]} -eq 0 ]]; then
             warn "Subvolume detection" "No named Btrfs subvolumes found. Falling back to root-only config."
@@ -488,11 +488,11 @@ if [[ "$INSTALL_FOR_VM" == "false" ]]; then
 
         if command -v limine-snapper-sync &>/dev/null; then
             step "Configuring Limine snapshot sync paths and limits..."
-            
+
             _snap_sv=$(findmnt /.snapshots -v -n -o FSROOT 2>/dev/null || echo "/@snapshots")
-            
+
             printf "# Injected by installer\nMAX_SNAPSHOT_ENTRIES=3\nROOT_SNAPSHOTS_PATH=\"%s\"\nESP_PATH=\"%s\"\n" "$_snap_sv" "$ESP" | sudo tee -a /etc/default/limine >/dev/null
-            
+
             task "Enabling Limine snapshot sync ${DIM}(bootable snapshots)${R}" \
                 sudo systemctl enable --now limine-snapper-sync.service
         else
@@ -510,11 +510,13 @@ step "Initializing XDG user directories..."
 xdg-user-dirs-update
 ok "XDG user directories created"
 
+
 step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
-cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles 2>/dev/null || true
+cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles \
+    || die "Failed to copy dotfiles from $SCRIPT_DIR/dotfiles — check permissions and disk space"
 rm -rf ~/.config/fish ~/.config/hypr
-(cd ~/.dotfiles && stow fish kitty nvim rofi wp dunst hyprland opencode tmux) \
+(cd ~/.dotfiles && stow --target="$HOME" fish kitty nvim rofi wp dunst hyprland opencode tmux) \
     || die "stow failed — check for pre-existing config conflicts"
 ok "Dotfiles applied via stow"
 
