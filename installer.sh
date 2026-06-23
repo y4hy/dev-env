@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo pipefail
+set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 _SCRIPT_START=$SECONDS
@@ -515,7 +515,23 @@ step "Deploying dotfiles... ${DIM}(creating symlinks via stow)${R}"
 mkdir -p ~/.dotfiles
 cp -R "$SCRIPT_DIR/dotfiles/"* ~/.dotfiles \
     || die "Failed to copy dotfiles from $SCRIPT_DIR/dotfiles — check permissions and disk space"
-rm -rf ~/.config/fish ~/.config/hypr
+
+# Back up any pre-existing configs that stow would otherwise conflict with,
+# rather than silently deleting the user's existing setup.
+_dotfiles_ts=$(date +%Y%m%d%H%M%S)
+for _cfg in fish hypr; do
+    _cfg_path="$HOME/.config/$_cfg"
+    if [[ -e "$_cfg_path" && ! -L "$_cfg_path" ]]; then
+        _backup="$_cfg_path.backup.$_dotfiles_ts"
+        mv "$_cfg_path" "$_backup" \
+            || die "Failed to back up existing $_cfg_path"
+        ok "Backed up existing $_cfg config → $_backup"
+    elif [[ -L "$_cfg_path" ]]; then
+        # Stale symlink from a previous run — safe to remove.
+        rm -f "$_cfg_path"
+    fi
+done
+
 (cd ~/.dotfiles && stow --target="$HOME" fish kitty nvim rofi wp dunst hyprland opencode tmux) \
     || die "stow failed — check for pre-existing config conflicts"
 ok "Dotfiles applied via stow"
