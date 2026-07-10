@@ -1,4 +1,4 @@
-vim.g.mapleader = " "
+-- mapleader is set in lua/y4hy/lazy.lua before lazy.nvim loads.
 
 local keymap = vim.keymap -- for conciseness
 
@@ -16,6 +16,8 @@ keymap.set("n", "<leader>nh", ":nohl<CR>", { desc = "Clear search highlights in 
 keymap.set("n", "<leader>sv", "<C-w>v", { desc = "Split window vertically (side by side)" })
 keymap.set("n", "<leader>sh", "<C-w>s", { desc = "Split window horizontally (top and bottom)" })
 keymap.set("n", "<leader>ss", "<C-w>=", { desc = "Make all split windows equal size" })
+keymap.set("n", "<leader>sx", "<C-w>c", { desc = "Close current split window" })
+keymap.set("n", "<leader>sm", "<C-w>|<C-w>_", { desc = "Maximise active split window" })
 
 -- resize windows
 keymap.set("n", "<A-Up>", ":resize -2<CR>", { desc = "Decrease current window height by 2" })
@@ -69,7 +71,8 @@ keymap.set("i", "<C-c>", "<Esc>", { desc = "Escape insert mode with Ctrl-c" })
 keymap.set("n", "Q", "<nop>", { desc = "Disable Ex mode" })
 
 -- substitute word under cursor
-keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]], { desc = "Substitute word under cursor" })
+keymap.set("n", "<leader>S", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]],
+    { desc = "Substitute word under cursor" })
 
 -- source current file
 keymap.set("n", "<leader><leader>", function()

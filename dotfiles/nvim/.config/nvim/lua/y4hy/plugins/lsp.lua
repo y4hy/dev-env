@@ -14,7 +14,6 @@ return {
     },
 
     config = function()
-        local cmp = require('cmp')
         local cmp_lsp = require("cmp_nvim_lsp")
         local capabilities = vim.tbl_deep_extend(
             "force",
@@ -37,24 +36,8 @@ return {
                     })
                 end,
 
-                ["rust_analyzer"] = function()
-                    local lspconfig = require("lspconfig")
-                    lspconfig.rust_analyzer.setup({
-                        capabilities = capabilities,
-                        settings = {
-                            ["rust-analyzer"] = {
-                                cargo = { allFeatures = true },
-                                checkOnSave = { command = "clippy" },
-                                diagnostics = { enable = true },
-                            },
-                        },
-                        workspace = {
-                            didChangeWatchedFiles = {
-                                dynamicRegistration = true,
-                            },
-                        },
-                    })
-                end,
+                -- rust_analyzer is intentionally not configured here; it is
+                -- managed by rustaceanvim (see plugins/rustacean.lua).
 
                 ["lua_ls"] = function()
                     local lspconfig = require("lspconfig")
@@ -82,27 +65,7 @@ return {
             }
         })
 
-        local cmp_select = { behavior = cmp.SelectBehavior.Select }
-
-        cmp.setup({
-            snippet = {
-                expand = function(args)
-                    require('luasnip').lsp_expand(args.body)
-                end,
-            },
-            mapping = cmp.mapping.preset.insert({
-                ['<C-p>'] = cmp.mapping.select_prev_item(cmp_select),
-                ['<C-n>'] = cmp.mapping.select_next_item(cmp_select),
-                ['<C-y>'] = cmp.mapping.confirm({ select = true }),
-                ["<C-Space>"] = cmp.mapping.complete(),
-            }),
-            sources = cmp.config.sources({
-                { name = 'nvim_lsp' },
-                { name = 'luasnip' },
-            }, {
-                { name = 'buffer' },
-            })
-        })
+        -- nvim-cmp is configured in plugins/cmp.lua.
 
         vim.diagnostic.config({
             virtual_text = true;
@@ -130,7 +93,7 @@ return {
                 vim.keymap.set('n', 'K', vim.lsp.buf.hover, vim.tbl_extend('force', opts, { desc = 'LSP: Show documentation' }))
                 vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, vim.tbl_extend('force', opts, { desc = 'LSP: Rename symbol' }))
                 vim.keymap.set({ 'n', 'v' }, '<leader>ca', vim.lsp.buf.code_action, vim.tbl_extend('force', opts, { desc = 'LSP: Code actions' }))
-                vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, vim.tbl_extend('force', opts, { desc = 'LSP: Show diagnostic' }))
+                vim.keymap.set('n', '<leader>k', vim.diagnostic.open_float, vim.tbl_extend('force', opts, { desc = 'LSP: Show diagnostic' }))
                 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, vim.tbl_extend('force', opts, { desc = 'LSP: Jump to previous diagnostic' }))
                 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, vim.tbl_extend('force', opts, { desc = 'LSP: Jump to next diagnostic' }))
             end,

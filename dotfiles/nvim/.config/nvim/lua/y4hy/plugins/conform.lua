@@ -14,10 +14,13 @@ return {
 					prepend_args = { "-style=file", "-fallback-style=LLVM" },
 				},
 			},
+			format_on_save = function(bufnr)
+				return { timeout_ms = 500, lsp_format = "fallback" }
+			end,
 		})
 
 		vim.keymap.set("n", "<leader>fr", function()
 			require("conform").format({ bufnr = 0 })
-		end)
+		end, { desc = "Format current buffer" })
 	end,
 }

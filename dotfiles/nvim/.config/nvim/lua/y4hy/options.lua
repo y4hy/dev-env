@@ -33,8 +33,8 @@ opt.clipboard:append("unnamedplus") -- use system clipboard as default register
 opt.splitright = true -- split vertical window to the right
 opt.splitbelow = true -- split horizontal window to the bottom
 
--- disable statusline
-opt.laststatus = 0
+-- single global statusline (see lua/y4hy/statusline.lua)
+opt.laststatus = 3
 
 -- Set the GUI cursor style
 opt.guicursor = ""
